@@ -1,0 +1,297 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useMemo, useRef, useState } from "react";
+
+import { stripHashtagsFromHtml } from "@/lib/body";
+import { formatHeading, stripHtmlTags } from "@/lib/heading";
+import { normalizeSearchText } from "@/lib/pinyin";
+import type { GlossaryEntry } from "@/lib/types";
+import {
+  NativeRichEditor,
+  type NativeRichEditorHandle
+} from "@/components/native-rich-editor";
+
+type HeadingOption = {
+  id: string;
+  heading: string;
+  create?: boolean;
+};
+
+export function EntryWorkspace({
+  entry,
+  canEdit,
+  headingOptions,
+  initiallyEditing = false,
+  backHref = "/"
+}: {
+  entry: GlossaryEntry;
+  canEdit: boolean;
+  headingOptions: HeadingOption[];
+  initiallyEditing?: boolean;
+  backHref?: string;
+}) {
+  const headingEditorRef = useRef<NativeRichEditorHandle>(null);
+  const bodyEditorRef = useRef<NativeRichEditorHandle>(null);
+  const saveTimerRef = useRef<number | null>(null);
+  const [isEditing, setIsEditing] = useState(initiallyEditing);
+  const [savedHeadingHtml, setSavedHeadingHtml] = useState(formatHeading(entry));
+  const [savedBodyHtml, setSavedBodyHtml] = useState(entry.body_rich_text);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState("");
+  const [linkQuery, setLinkQuery] = useState("");
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
+
+  const renderedBody = useMemo(() => stripHashtagsFromHtml(savedBodyHtml), [savedBodyHtml]);
+  const linkMatches = useMemo(() => {
+    const query = normalizeSearchText(linkQuery);
+    const ranked = headingOptions
+      .filter((option) => option.id !== entry.id)
+      .map((option) => ({
+        ...option,
+        score: scoreHeading(option.heading, query)
+      }))
+      .filter((option) => option.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 8);
+
+    if (!query) {
+      return ranked;
+    }
+
+    if (ranked.length === 0) {
+      ranked.push({
+        id: `create:${linkQuery}`,
+        heading: linkQuery,
+        create: true,
+        score: 1
+      });
+    }
+
+    return ranked;
+  }, [entry.id, headingOptions, linkQuery]);
+
+  const persist = useCallback(async () => {
+    const headingHtml = headingEditorRef.current?.getHtml() ?? savedHeadingHtml;
+    const headingText = headingEditorRef.current?.getText() ?? savedHeadingHtml;
+    const bodyHtml = bodyEditorRef.current?.getHtml() ?? savedBodyHtml;
+
+    const response = await fetch("/api/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: entry.id,
+        heading_html: headingHtml,
+        heading_text: headingText,
+        body_rich_text: bodyHtml
+      })
+    });
+
+    if (response.status === 409) {
+      const payload = (await response.json()) as { error: string };
+      setError(payload.error);
+      setSaveState("error");
+      return false;
+    }
+
+    if (!response.ok) {
+      setError("Autosave failed.");
+      setSaveState("error");
+      return false;
+    }
+
+    setError("");
+    setSavedHeadingHtml(headingHtml);
+    setSavedBodyHtml(bodyHtml);
+    setSaveState("saved");
+    return true;
+  }, [entry.id, savedBodyHtml, savedHeadingHtml]);
+
+  const schedulePersist = useCallback(() => {
+    if (!isEditing || !canEdit) {
+      return;
+    }
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    setSaveState("saving");
+    saveTimerRef.current = window.setTimeout(() => {
+      void persist();
+    }, 800);
+  }, [canEdit, isEditing, persist]);
+
+  function openLinkPicker() {
+    const text = bodyEditorRef.current?.captureSelectionText() ?? "";
+    if (!text) {
+      return;
+    }
+    setLinkQuery(text);
+    setShowLinkPicker(true);
+  }
+
+  async function applyLink(target: HeadingOption) {
+    let targetId = target.id;
+
+    if (target.create) {
+      const response = await fetch("/api/entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          heading_html: target.heading,
+          heading_text: target.heading,
+          body_rich_text: "<p></p>"
+        })
+      });
+
+      if (!response.ok) {
+        setError("Could not create linked entry.");
+        setSaveState("error");
+        return;
+      }
+
+      const payload = (await response.json()) as { entry: { id: string } };
+      targetId = payload.entry.id;
+    }
+
+    bodyEditorRef.current?.insertLink(`/entries/${targetId}`, targetId);
+    setShowLinkPicker(false);
+    setLinkQuery("");
+    schedulePersist();
+  }
+
+  return (
+    <article className="panel entry-workspace">
+      <div className="workspace-bar">
+        <a href={backHref}>Back to results</a>
+        <div className="workspace-controls">
+          {canEdit ? (
+            <div className="mode-toggle" role="group" aria-label="Entry mode">
+              <button
+                type="button"
+                className={!isEditing ? "toggle-button active" : "toggle-button"}
+                onClick={async () => {
+                  if (isEditing) {
+                    await persist();
+                  }
+                  setIsEditing(false);
+                }}
+              >
+                View
+              </button>
+              <button
+                type="button"
+                className={isEditing ? "toggle-button active" : "toggle-button"}
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
+              </button>
+            </div>
+          ) : null}
+          <span className="muted">
+            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : error || ""}
+          </span>
+        </div>
+      </div>
+
+      {isEditing && canEdit ? (
+        <>
+          <NativeRichEditor
+            ref={headingEditorRef}
+            className="heading-editor editor-surface"
+            initialHtml={savedHeadingHtml}
+            placeholder="Heading"
+            singleLine
+            onDirty={schedulePersist}
+          />
+          <div className="editor-tools">
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                openLinkPicker();
+              }}
+            >
+              Hotlink selection
+            </button>
+            <span className="muted">Hashtags remain searchable but disappear in view mode.</span>
+          </div>
+          <NativeRichEditor
+            ref={bodyEditorRef}
+            className="body-editor editor-surface"
+            initialHtml={savedBodyHtml}
+            placeholder="Body"
+            onDirty={schedulePersist}
+          />
+          {showLinkPicker ? (
+            <div className="link-picker">
+              <div className="link-picker-header">
+                <strong>Link selection</strong>
+                <button type="button" onClick={() => setShowLinkPicker(false)}>
+                  Close
+                </button>
+              </div>
+              <ul>
+                {linkMatches.map((option) => (
+                  <li key={option.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        void applyLink(option);
+                      }}
+                    >
+                      {option.create ? `Create "${stripHtmlTags(option.heading)}"` : stripHtmlTags(option.heading)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <div className="entry-footer">
+            <button
+              type="button"
+              className="delete-button"
+              aria-label="Delete entry"
+              onClick={async () => {
+                const confirmed = window.confirm("Delete this entry?");
+                if (!confirmed) {
+                  return;
+                }
+                const response = await fetch(`/api/entries/${entry.id}`, { method: "DELETE" });
+                if (response.ok) {
+                  window.location.href = "/";
+                } else {
+                  setError("Could not delete entry.");
+                }
+              }}
+            >
+              🗑
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h1 dangerouslySetInnerHTML={{ __html: savedHeadingHtml }} />
+          <div className="entry-body" dangerouslySetInnerHTML={{ __html: renderedBody }} />
+        </>
+      )}
+    </article>
+  );
+}
+
+function scoreHeading(heading: string, query: string): number {
+  if (!query) {
+    return 0;
+  }
+  const normalizedHeading = normalizeSearchText(stripHtmlTags(heading));
+  if (normalizedHeading === query) {
+    return 50;
+  }
+  if (normalizedHeading.startsWith(query)) {
+    return 30;
+  }
+  if (normalizedHeading.includes(query)) {
+    return 20;
+  }
+  return 0;
+}
