@@ -8,3 +8,11 @@ export function stripHashtagsFromHtml(html: string): string {
 export function stripLinksFromHtml(html: string): string {
   return html.replace(/<a\b[^>]*>/gi, "").replace(/<\/a>/gi, "");
 }
+
+export function containsPlaceholderTag(html: string): boolean {
+  return /(^|>|\s)#placeholder(?=\s|<|$)/iu.test(html);
+}
+
+export function renderViewBodyHtml(html: string): string {
+  return containsPlaceholderTag(html) ? "" : stripHashtagsFromHtml(html);
+}

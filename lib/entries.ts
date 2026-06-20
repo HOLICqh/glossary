@@ -1,3 +1,4 @@
+import { containsPlaceholderTag } from "@/lib/body";
 import { formatHeading } from "@/lib/heading";
 import { normalizePinyinForSort, normalizeSearchText, tokens } from "@/lib/pinyin";
 import { richTextToPlainText } from "@/lib/rich-text";
@@ -26,8 +27,15 @@ export function buildPlainTextSearchCache(input: {
 
 export function prepareEntry(input: EntryInput): GlossaryEntry {
   const now = new Date().toISOString();
+  const isPlaceholder = containsPlaceholderTag(input.body_rich_text);
+  const nextStatus =
+    isPlaceholder ? "placeholder" : input.status === "placeholder" ? "draft" : input.status;
+  const nextEntryType =
+    isPlaceholder ? "placeholder" : input.entry_type === "placeholder" ? "text" : input.entry_type;
   return {
     ...input,
+    status: nextStatus,
+    entry_type: nextEntryType,
     heading_rich_text:
       input.heading_rich_text ||
       [input.headword_pinyin, input.headword_characters].filter(Boolean).join(" ").trim(),

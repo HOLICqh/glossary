@@ -45,7 +45,7 @@ export function createPlaceholderFromText(
     sort_key: selectedText.trim().toLowerCase(),
     english_gloss_or_translation: "Placeholder entry",
     entry_type: "placeholder",
-    body_rich_text: "<p>Add content.</p>",
+    body_rich_text: "<p>#placeholder</p>",
     plain_text_search_cache: selectedText.trim().toLowerCase(),
     status: "placeholder",
     tags: [],

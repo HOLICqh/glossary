@@ -2,6 +2,7 @@ import { AppShell } from "@/components/app-shell";
 import { EntryList } from "@/components/entry-list";
 import { SearchBar } from "@/components/search-bar";
 import { getUserRole } from "@/lib/auth";
+import { containsPlaceholderTag } from "@/lib/body";
 import { getRepository } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export default async function HomePage({
     params.sort === "alpha"
       ? filteredEntries.slice().sort((left, right) => left.sort_key.localeCompare(right.sort_key))
       : filteredEntries;
-  const visibleEntries = role === "editor" ? entries : entries.slice(0, 20);
+  const audienceEntries = role === "editor" ? entries : entries.filter((entry) => !containsPlaceholderTag(entry.body_rich_text));
+  const visibleEntries = role === "editor" ? audienceEntries : audienceEntries.slice(0, 20);
   const currentParams = new URLSearchParams();
   if (params.q) {
     currentParams.set("q", params.q);

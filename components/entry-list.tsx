@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { FileMenu } from "@/components/file-menu";
-import { stripHashtagsFromHtml, stripLinksFromHtml } from "@/lib/body";
+import { containsPlaceholderTag, renderViewBodyHtml, stripLinksFromHtml } from "@/lib/body";
 import { formatHeading } from "@/lib/heading";
 import type { GlossaryEntry } from "@/lib/types";
 
@@ -186,6 +186,9 @@ export function EntryList({
 
       <div className="entry-preview-list">
         {entries.map((entry) => (
+          (() => {
+            const placeholderEntry = containsPlaceholderTag(entry.body_rich_text);
+            return (
           <div
             key={entry.id}
             className={editor ? "entry-preview-row" : "entry-preview-row entry-preview-row-public"}
@@ -201,17 +204,23 @@ export function EntryList({
             ) : null}
             <Link
               href={`/entries/${entry.id}${backHref ? `?back=${encodeURIComponent(backHref)}` : ""}`}
-              className="panel entry-preview-card entry-preview-link"
+              className={
+                editor && placeholderEntry
+                  ? "panel entry-preview-card entry-preview-link placeholder-entry"
+                  : "panel entry-preview-card entry-preview-link"
+              }
             >
               <h2 dangerouslySetInnerHTML={{ __html: formatHeading(entry) }} />
               <div
                 className="entry-preview-body line-clamp-6"
                 dangerouslySetInnerHTML={{
-                  __html: stripLinksFromHtml(stripHashtagsFromHtml(entry.body_rich_text))
+                  __html: stripLinksFromHtml(renderViewBodyHtml(entry.body_rich_text))
                 }}
               />
             </Link>
           </div>
+            );
+          })()
         ))}
       </div>
     </>

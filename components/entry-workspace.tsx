@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { stripHashtagsFromHtml } from "@/lib/body";
-import { formatHeading, stripHtmlTags } from "@/lib/heading";
+import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
+import { formatHeading, normalizeHeadingKey, stripHtmlTags } from "@/lib/heading";
 import { normalizeSearchText } from "@/lib/pinyin";
 import type { GlossaryEntry } from "@/lib/types";
 import {
@@ -44,9 +44,10 @@ export function EntryWorkspace({
   const [linkQuery, setLinkQuery] = useState("");
   const [showLinkPicker, setShowLinkPicker] = useState(false);
 
-  const renderedBody = useMemo(() => stripHashtagsFromHtml(savedBodyHtml), [savedBodyHtml]);
+  const renderedBody = useMemo(() => renderViewBodyHtml(savedBodyHtml), [savedBodyHtml]);
   const linkMatches = useMemo(() => {
     const query = normalizeSearchText(linkQuery);
+    const normalizedQueryHeading = normalizeHeadingKey(linkQuery);
     const ranked = headingOptions
       .filter((option) => option.id !== entry.id)
       .map((option) => ({
@@ -57,16 +58,18 @@ export function EntryWorkspace({
       .sort((left, right) => right.score - left.score)
       .slice(0, 8);
 
-    if (!query) {
-      return ranked;
-    }
-
-    if (ranked.length === 0) {
+    if (
+      linkQuery.trim() &&
+      !headingOptions.some(
+        (option) =>
+          option.id !== entry.id && normalizeHeadingKey(stripHtmlTags(option.heading)) === normalizedQueryHeading
+      )
+    ) {
       ranked.push({
         id: `create:${linkQuery}`,
         heading: linkQuery,
         create: true,
-        score: 1
+        score: -1
       });
     }
 
@@ -190,7 +193,7 @@ export function EntryWorkspace({
         body: JSON.stringify({
           heading_html: target.heading,
           heading_text: target.heading,
-          body_rich_text: "<p></p>"
+          body_rich_text: "<p>#placeholder</p>"
         })
       });
 
@@ -304,7 +307,9 @@ export function EntryWorkspace({
                         void applyLink(option);
                       }}
                     >
-                      {option.create ? `Create "${stripHtmlTags(option.heading)}"` : stripHtmlTags(option.heading)}
+                      {option.create
+                        ? `Create new "${stripHtmlTags(option.heading)}"`
+                        : stripHtmlTags(option.heading)}
                     </button>
                   </li>
                 ))}

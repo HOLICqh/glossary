@@ -1,4 +1,4 @@
-import { stripHashtagsFromHtml, stripLinksFromHtml } from "@/lib/body";
+import { containsPlaceholderTag, renderViewBodyHtml, stripHashtagsFromHtml, stripLinksFromHtml } from "@/lib/body";
 
 describe("stripHashtagsFromHtml", () => {
   it("hides hashtags in rendered view output", () => {
@@ -10,5 +10,10 @@ describe("stripHashtagsFromHtml", () => {
   it("removes nested links for preview cards while keeping the text", () => {
     const html = '<p>See <a href="/entries/mozi"><em>Mòzǐ</em></a> here.</p>';
     expect(stripLinksFromHtml(html)).toBe("<p>See <em>Mòzǐ</em> here.</p>");
+  });
+
+  it("treats #placeholder as a body-level visibility flag", () => {
+    expect(containsPlaceholderTag("<p>#placeholder</p>")).toBe(true);
+    expect(renderViewBodyHtml("<p>Visible text #placeholder</p>")).toBe("");
   });
 });
