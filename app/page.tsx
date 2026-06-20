@@ -51,7 +51,12 @@ export default async function HomePage({
 
   return (
     <AppShell editor={role === "editor"} headerControls={<SearchBar />}>
-      <EntryList entries={visibleEntries} editor={role === "editor"} backHref={backHref} />
+      <EntryList
+        entries={visibleEntries}
+        editor={role === "editor"}
+        backHref={backHref}
+        importStatus={params.import_status ?? ""}
+      />
     </AppShell>
   );
 }

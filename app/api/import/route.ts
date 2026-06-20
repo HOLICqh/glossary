@@ -1,7 +1,7 @@
 import { getUserRole } from "@/lib/auth";
 import { parseHtmlImport, parseImportFile, parsePlainTextImport } from "@/lib/importer";
 import { getRepository } from "@/lib/repository";
-import { convertRtfToHtml } from "@/lib/textutil";
+import { convertRtfToHtml, convertRtfToPlainText } from "@/lib/textutil";
 
 export async function POST(request: Request) {
   if ((await getUserRole()) !== "editor") {
@@ -14,9 +14,16 @@ export async function POST(request: Request) {
     replaceDuplicates?: boolean;
   };
 
-  const result = body.fileName.toLowerCase().endsWith(".rtf")
-    ? parseHtmlImport(await convertRtfToHtml(body.content), "editor")
-    : parseImportFile(body.content, body.fileName, "editor");
+  let result;
+  if (body.fileName.toLowerCase().endsWith(".rtf")) {
+    try {
+      result = parseHtmlImport(await convertRtfToHtml(body.content), "editor");
+    } catch {
+      result = parsePlainTextImport(await convertRtfToPlainText(body.content), "editor");
+    }
+  } else {
+    result = parseImportFile(body.content, body.fileName, "editor");
+  }
   const repo = getRepository();
   let duplicateCount = 0;
   let acceptedCount = 0;

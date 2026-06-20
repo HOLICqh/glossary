@@ -12,11 +12,13 @@ import type { GlossaryEntry } from "@/lib/types";
 export function EntryList({
   entries,
   editor,
-  backHref
+  backHref,
+  importStatus = ""
 }: {
   entries: GlossaryEntry[];
   editor: boolean;
   backHref: string;
+  importStatus?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -125,58 +127,61 @@ export function EntryList({
   return (
     <>
       {editor ? (
-        <div className="list-toolbar">
-          <label className="list-select-option">
-            <input
-              aria-label="Select all search results"
-              title="Select all search results"
-              type="checkbox"
-              checked={allSelected}
-              onChange={toggleAll}
-            />
-            {selectedIds.length > 0 ? (
-              <span className="selection-count">
-                {selectedIds.length} item{selectedIds.length === 1 ? "" : "s"}
-              </span>
-            ) : null}
-          </label>
-          <div className="list-actions">
-            <Link className="list-icon-link" href="/entries/new" aria-label="Add entry" title="Add entry">
-              +
-            </Link>
-            <FileMenu editor={editor} />
-            <button
-              type="button"
-              className="list-icon-button"
-              aria-label="Alphabetize current selection"
-              title="Alphabetize current selection"
-              disabled={selectedIds.length === 0}
-              onClick={alphabetizeSelected}
-            >
-              A-Z
-            </button>
-            <button
-              type="button"
-              className="list-icon-button"
-              aria-label="Export current selection"
-              title="Export current selection"
-              disabled={selectedIds.length === 0}
-              onClick={() => void exportSelected("rtf")}
-            >
-              ⤓
-            </button>
-            <button
-              type="button"
-              className="list-icon-button"
-              aria-label="Delete selected entries"
-              title="Delete selected entries"
-              disabled={selectedIds.length === 0}
-              onClick={() => void deleteSelected()}
-            >
-              🗑
-            </button>
+        <>
+          <div className="list-toolbar">
+            <label className="list-select-option">
+              <input
+                aria-label="Select all search results"
+                title="Select all search results"
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+              />
+              {selectedIds.length > 0 ? (
+                <span className="selection-count">
+                  {selectedIds.length} item{selectedIds.length === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </label>
+            <div className="list-actions">
+              <Link className="list-icon-link" href="/entries/new" aria-label="Add entry" title="Add entry">
+                +
+              </Link>
+              <FileMenu editor={editor} />
+              <button
+                type="button"
+                className="list-icon-button"
+                aria-label="Alphabetize current selection"
+                title="Alphabetize current selection"
+                disabled={selectedIds.length === 0}
+                onClick={alphabetizeSelected}
+              >
+                A-Z
+              </button>
+              <button
+                type="button"
+                className="list-icon-button"
+                aria-label="Export current selection"
+                title="Export current selection"
+                disabled={selectedIds.length === 0}
+                onClick={() => void exportSelected("rtf")}
+              >
+                ⤓
+              </button>
+              <button
+                type="button"
+                className="list-icon-button"
+                aria-label="Delete selected entries"
+                title="Delete selected entries"
+                disabled={selectedIds.length === 0}
+                onClick={() => void deleteSelected()}
+              >
+                🗑
+              </button>
+            </div>
           </div>
-        </div>
+          {importStatus ? <p className="list-status muted">{importStatus}</p> : null}
+        </>
       ) : null}
 
       <div className="entry-preview-list">
