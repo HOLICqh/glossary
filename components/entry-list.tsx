@@ -134,6 +134,11 @@ export function EntryList({
               checked={allSelected}
               onChange={toggleAll}
             />
+            {selectedIds.length > 0 ? (
+              <span className="selection-count">
+                {selectedIds.length} item{selectedIds.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
           </label>
           <div className="list-actions">
             <Link className="list-icon-link" href="/entries/new" aria-label="Add entry" title="Add entry">
