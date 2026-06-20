@@ -13,6 +13,7 @@ export type NativeRichEditorHandle = {
   getText: () => string;
   captureSelectionText: () => string;
   insertLink: (url: string, entryId: string) => void;
+  replaceSelectionText: (replacement: string) => boolean;
 };
 
 export const NativeRichEditor = forwardRef<
@@ -45,18 +46,40 @@ export const NativeRichEditor = forwardRef<
     }
   }, [initialHtml]);
 
+  function rangeBelongsToEditor(range: Range): boolean {
+    const editor = editorRef.current;
+    if (!editor) {
+      return false;
+    }
+
+    const ancestor = range.commonAncestorContainer;
+    return editor.contains(ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentNode : ancestor);
+  }
+
+  function getEditorSelectionRange(): Range | null {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    return rangeBelongsToEditor(range) ? range : null;
+  }
+
   useImperativeHandle(ref, () => ({
     focus: () => editorRef.current?.focus(),
     getHtml: () => editorRef.current?.innerHTML ?? "",
     getText: () => editorRef.current?.innerText.trim() ?? "",
     captureSelectionText: () => {
+      const range = getEditorSelectionRange();
       const selection = window.getSelection();
-      if (!selection || !selection.rangeCount) {
+      if (!range || !selection) {
         return "";
       }
+
       const text = selection.toString().trim();
       if (text) {
-        selectionRangeRef.current = selection.getRangeAt(0).cloneRange();
+        selectionRangeRef.current = range.cloneRange();
       }
       return text;
     },
@@ -88,6 +111,26 @@ export const NativeRichEditor = forwardRef<
       selection.removeAllRanges();
       selection.addRange(range);
       onDirty?.();
+    },
+    replaceSelectionText: (replacement: string) => {
+      const selection = window.getSelection();
+      const range = selectionRangeRef.current ?? getEditorSelectionRange();
+      if (!selection || !range) {
+        return false;
+      }
+
+      selection.removeAllRanges();
+      selection.addRange(range);
+      range.deleteContents();
+      const textNode = document.createTextNode(replacement);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      selectionRangeRef.current = null;
+      onDirty?.();
+      return true;
     }
   }));
 

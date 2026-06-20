@@ -133,6 +133,53 @@ export function EntryWorkspace({
     setShowLinkPicker(true);
   }
 
+  async function convertSelectionToPinyin() {
+    const headingText = headingEditorRef.current?.captureSelectionText() ?? "";
+    if (headingText) {
+      const response = await fetch("/api/pinyin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: headingText })
+      });
+      if (!response.ok) {
+        setError("Could not convert selection to pinyin.");
+        setSaveState("error");
+        return;
+      }
+      const payload = (await response.json()) as { text: string };
+      const replaced = headingEditorRef.current?.replaceSelectionText(payload.text);
+      if (replaced) {
+        setError("");
+        schedulePersist();
+      }
+      return;
+    }
+
+    const bodyText = bodyEditorRef.current?.captureSelectionText() ?? "";
+    if (bodyText) {
+      const response = await fetch("/api/pinyin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: bodyText })
+      });
+      if (!response.ok) {
+        setError("Could not convert selection to pinyin.");
+        setSaveState("error");
+        return;
+      }
+      const payload = (await response.json()) as { text: string };
+      const replaced = bodyEditorRef.current?.replaceSelectionText(payload.text);
+      if (replaced) {
+        setError("");
+        schedulePersist();
+      }
+      return;
+    }
+
+    setError("Select Chinese text in the heading or body first.");
+    setSaveState("error");
+  }
+
   async function applyLink(target: HeadingOption) {
     let targetId = target.id;
 
@@ -212,6 +259,15 @@ export function EntryWorkspace({
             onDirty={schedulePersist}
           />
           <div className="editor-tools">
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                void convertSelectionToPinyin();
+              }}
+            >
+              Pinyin selection
+            </button>
             <button
               type="button"
               onMouseDown={(event) => {
