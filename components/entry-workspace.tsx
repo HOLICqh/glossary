@@ -34,9 +34,11 @@ export function EntryWorkspace({
   const headingEditorRef = useRef<NativeRichEditorHandle>(null);
   const bodyEditorRef = useRef<NativeRichEditorHandle>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const savedHeadingHtmlRef = useRef(formatHeading(entry));
+  const savedBodyHtmlRef = useRef(entry.body_rich_text);
   const [isEditing, setIsEditing] = useState(initiallyEditing);
-  const [savedHeadingHtml, setSavedHeadingHtml] = useState(formatHeading(entry));
-  const [savedBodyHtml, setSavedBodyHtml] = useState(entry.body_rich_text);
+  const [savedHeadingHtml, setSavedHeadingHtml] = useState(savedHeadingHtmlRef.current);
+  const [savedBodyHtml, setSavedBodyHtml] = useState(savedBodyHtmlRef.current);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const [linkQuery, setLinkQuery] = useState("");
@@ -72,9 +74,9 @@ export function EntryWorkspace({
   }, [entry.id, headingOptions, linkQuery]);
 
   const persist = useCallback(async () => {
-    const headingHtml = headingEditorRef.current?.getHtml() ?? savedHeadingHtml;
-    const headingText = headingEditorRef.current?.getText() ?? savedHeadingHtml;
-    const bodyHtml = bodyEditorRef.current?.getHtml() ?? savedBodyHtml;
+    const headingHtml = headingEditorRef.current?.getHtml() ?? savedHeadingHtmlRef.current;
+    const headingText = headingEditorRef.current?.getText() ?? savedHeadingHtmlRef.current;
+    const bodyHtml = bodyEditorRef.current?.getHtml() ?? savedBodyHtmlRef.current;
 
     const response = await fetch("/api/entries", {
       method: "POST",
@@ -101,11 +103,13 @@ export function EntryWorkspace({
     }
 
     setError("");
+    savedHeadingHtmlRef.current = headingHtml;
+    savedBodyHtmlRef.current = bodyHtml;
     setSavedHeadingHtml(headingHtml);
     setSavedBodyHtml(bodyHtml);
     setSaveState("saved");
     return true;
-  }, [entry.id, savedBodyHtml, savedHeadingHtml]);
+  }, [entry.id]);
 
   const schedulePersist = useCallback(() => {
     if (!isEditing || !canEdit) {
@@ -172,6 +176,10 @@ export function EntryWorkspace({
                 onClick={async () => {
                   if (isEditing) {
                     await persist();
+                    setSavedHeadingHtml(
+                      headingEditorRef.current?.getHtml() ?? savedHeadingHtmlRef.current
+                    );
+                    setSavedBodyHtml(bodyEditorRef.current?.getHtml() ?? savedBodyHtmlRef.current);
                   }
                   setIsEditing(false);
                 }}
@@ -198,7 +206,7 @@ export function EntryWorkspace({
           <NativeRichEditor
             ref={headingEditorRef}
             className="heading-editor editor-surface"
-            initialHtml={savedHeadingHtml}
+            initialHtml={savedHeadingHtmlRef.current}
             placeholder="Heading"
             singleLine
             onDirty={schedulePersist}
@@ -218,7 +226,7 @@ export function EntryWorkspace({
           <NativeRichEditor
             ref={bodyEditorRef}
             className="body-editor editor-surface"
-            initialHtml={savedBodyHtml}
+            initialHtml={savedBodyHtmlRef.current}
             placeholder="Body"
             onDirty={schedulePersist}
           />

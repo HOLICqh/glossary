@@ -30,10 +30,18 @@ export const NativeRichEditor = forwardRef<
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const selectionRangeRef = useRef<Range | null>(null);
+  const isComposingRef = useRef(false);
+  const pendingDirtyRef = useRef(false);
+  const lastAppliedHtmlRef = useRef("");
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== initialHtml) {
+    if (
+      editorRef.current &&
+      document.activeElement !== editorRef.current &&
+      lastAppliedHtmlRef.current !== initialHtml
+    ) {
       editorRef.current.innerHTML = initialHtml;
+      lastAppliedHtmlRef.current = initialHtml;
     }
   }, [initialHtml]);
 
@@ -89,15 +97,38 @@ export const NativeRichEditor = forwardRef<
       className={className}
       contentEditable
       suppressContentEditableWarning
+      spellCheck={false}
       data-placeholder={placeholder ?? ""}
-      onInput={onDirty}
-      onBlur={onDirty}
+      onInput={() => {
+        if (isComposingRef.current) {
+          pendingDirtyRef.current = true;
+          return;
+        }
+        onDirty?.();
+      }}
+      onBlur={() => {
+        if (isComposingRef.current) {
+          pendingDirtyRef.current = true;
+          return;
+        }
+        onDirty?.();
+      }}
+      onCompositionStart={() => {
+        isComposingRef.current = true;
+      }}
+      onCompositionEnd={() => {
+        isComposingRef.current = false;
+        if (pendingDirtyRef.current) {
+          pendingDirtyRef.current = false;
+          onDirty?.();
+        }
+      }}
       onKeyDown={(event) => {
         if (singleLine && event.key === "Enter") {
           event.preventDefault();
         }
 
-        if (event.metaKey || event.ctrlKey) {
+        if (!event.altKey && (event.metaKey || event.ctrlKey)) {
           const key = event.key.toLowerCase();
           if (key === "i") {
             event.preventDefault();

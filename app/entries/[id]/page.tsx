@@ -30,7 +30,7 @@ export default async function EntryPage({
       <EntryWorkspace
         entry={entry}
         canEdit={role === "editor"}
-        initiallyEditing={query.edit === "1" && role === "editor"}
+        initiallyEditing={role === "editor" ? query.edit !== "0" : false}
         backHref={query.back || "/"}
         headingOptions={allEntries.map((item) => ({
           id: item.id,
