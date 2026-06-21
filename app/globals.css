@@ -5,11 +5,13 @@
   --muted: #6a6a6a;
   --line: #d7d7d2;
   --accent: #1d4ed8;
+  --entry-font: "Iowan Old Style", "Times New Roman", Georgia, "Kaiti TC", "Kaiti SC", "STKaiti", "BiauKai", "KaiTi", serif;
+  --entry-size: 1.12rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .content-font {
-  font-family: "Iowan Old Style", "Times New Roman", Georgia, "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-family: var(--entry-font);
 }
 
 * {
@@ -243,12 +245,13 @@ button {
 
 .entry-preview-link h2 {
   font-size: 1.15rem;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .entry-preview-body {
   line-height: 1.7;
-  font-family: "Iowan Old Style", "Times New Roman", Georgia, "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-family: var(--entry-font);
+  font-size: var(--entry-size);
 }
 
 .entry-preview-body p {
@@ -285,7 +288,7 @@ button {
 }
 
 .heading-editor {
-  font-size: 2rem;
+  font-size: var(--entry-size);
   font-weight: 600;
   line-height: 1.3;
   min-height: 2.5rem;
@@ -299,6 +302,7 @@ button {
 .entry-workspace h1 *,
 .entry-preview-link h2,
 .entry-preview-link h2 * {
+  font-family: var(--entry-font) !important;
   font-size: inherit !important;
   line-height: inherit !important;
 }
@@ -307,6 +311,7 @@ button {
 .entry-body {
   min-height: 320px;
   line-height: 1.7;
+  font-size: var(--entry-size);
 }
 
 .body-editor {
@@ -338,7 +343,24 @@ button {
 .entry-workspace h1,
 .entry-preview-link h2,
 .entry-preview-body {
-  font-family: "Iowan Old Style", "Times New Roman", Georgia, "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-family: var(--entry-font);
+}
+
+.entry-body *,
+.body-editor *,
+.heading-editor *,
+.entry-workspace h1 *,
+.entry-preview-link h2 *,
+.entry-preview-body * {
+  font-family: var(--entry-font) !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.entry-workspace h1,
+.entry-preview-link h2 {
+  font-size: var(--entry-size);
+  font-weight: 600;
 }
 
 .toggle-button {

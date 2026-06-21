@@ -7,6 +7,8 @@ import {
   useRef
 } from "react";
 
+import { sanitizePastedHtml, sanitizePastedText } from "@/lib/editor-html";
+
 export type NativeRichEditorHandle = {
   focus: () => void;
   getHtml: () => string;
@@ -64,6 +66,12 @@ export const NativeRichEditor = forwardRef<
 
     const range = selection.getRangeAt(0);
     return rangeBelongsToEditor(range) ? range : null;
+  }
+
+  function insertHtmlAtSelection(html: string) {
+    editorRef.current?.focus();
+    document.execCommand("insertHTML", false, html);
+    onDirty?.();
   }
 
   useImperativeHandle(ref, () => ({
@@ -164,6 +172,17 @@ export const NativeRichEditor = forwardRef<
         if (pendingDirtyRef.current) {
           pendingDirtyRef.current = false;
           onDirty?.();
+        }
+      }}
+      onPaste={(event) => {
+        event.preventDefault();
+        const html = event.clipboardData.getData("text/html");
+        const text = event.clipboardData.getData("text/plain");
+        const sanitized = html
+          ? sanitizePastedHtml(html, singleLine)
+          : sanitizePastedText(text, singleLine);
+        if (sanitized) {
+          insertHtmlAtSelection(sanitized);
         }
       }}
       onKeyDown={(event) => {
