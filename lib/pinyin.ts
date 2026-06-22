@@ -16,6 +16,10 @@ export function normalizeSearchText(value: string): string {
   return normalizeWhitespace(stripDiacritics(value).toLowerCase());
 }
 
+export function normalizeCompactSearchText(value: string): string {
+  return normalizeSearchText(value).replace(/[^\p{L}\p{N}\p{Script=Han}#]+/gu, "");
+}
+
 export function hasToneMarks(value: string): boolean {
   const decomposed = value.normalize("NFD");
   return /\p{M}/u.test(decomposed);

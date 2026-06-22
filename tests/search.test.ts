@@ -8,6 +8,11 @@ describe("searchEntries", () => {
     expect(results[0]?.entry.headword_pinyin).toBe("Shěn Yǒudǐng");
   });
 
+  it("finds pinyin even when spaces are omitted", () => {
+    const results = searchEntries(sampleEntries, "ShenYouding");
+    expect(results[0]?.entry.headword_pinyin).toBe("Shěn Yǒudǐng");
+  });
+
   it("finds Han-character matches", () => {
     const results = searchEntries(sampleEntries, "墨子閒詁");
     expect(results[0]?.entry.headword_pinyin).toBe("Mòzǐ jiāngǔ");

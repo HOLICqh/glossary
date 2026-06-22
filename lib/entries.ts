@@ -1,6 +1,11 @@
 import { containsPlaceholderTag } from "@/lib/body";
 import { formatHeading } from "@/lib/heading";
-import { normalizePinyinForSort, normalizeSearchText, tokens } from "@/lib/pinyin";
+import {
+  normalizeCompactSearchText,
+  normalizePinyinForSort,
+  normalizeSearchText,
+  tokens
+} from "@/lib/pinyin";
 import { richTextToPlainText } from "@/lib/rich-text";
 import type { EntryInput, GlossaryEntry, SearchResult } from "@/lib/types";
 
@@ -49,21 +54,38 @@ export function prepareEntry(input: EntryInput): GlossaryEntry {
 
 export function scoreEntry(entry: GlossaryEntry, query: string): SearchResult {
   const normalizedQuery = normalizeSearchText(query);
+  const compactQuery = normalizeCompactSearchText(query);
   const queryTokens = tokens(query);
   const haystack = normalizeSearchText(entry.plain_text_search_cache);
+  const compactHaystack = normalizeCompactSearchText(entry.plain_text_search_cache);
+  const normalizedHeadword = normalizeSearchText(entry.headword_pinyin);
+  const compactHeadword = normalizeCompactSearchText(entry.headword_pinyin);
+  const normalizedGloss = normalizeSearchText(entry.english_gloss_or_translation);
   let score = 0;
 
-  if (normalizeSearchText(entry.headword_pinyin) === normalizedQuery) {
+  if (normalizedHeadword === normalizedQuery) {
     score += 50;
   }
-  if (normalizeSearchText(entry.headword_pinyin).includes(normalizedQuery)) {
+  if (normalizedHeadword.includes(normalizedQuery)) {
     score += 25;
+  }
+  if (compactQuery && compactHeadword === compactQuery) {
+    score += 45;
+  }
+  if (compactQuery && compactHeadword.includes(compactQuery)) {
+    score += 22;
   }
   if (entry.headword_characters.includes(query.trim())) {
     score += 25;
   }
-  if (normalizeSearchText(entry.english_gloss_or_translation).includes(normalizedQuery)) {
+  if (normalizedGloss.includes(normalizedQuery)) {
     score += 10;
+  }
+  if (compactQuery && normalizeCompactSearchText(entry.english_gloss_or_translation).includes(compactQuery)) {
+    score += 8;
+  }
+  if (compactQuery && compactHaystack.includes(compactQuery)) {
+    score += 6;
   }
 
   const matches = queryTokens.filter((token) => haystack.includes(token));
