@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
 import { formatHeading, normalizeHeadingKey, stripHtmlTags } from "@/lib/heading";
@@ -43,12 +43,17 @@ export function EntryWorkspace({
   const [error, setError] = useState("");
   const [linkQuery, setLinkQuery] = useState("");
   const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [availableHeadingOptions, setAvailableHeadingOptions] = useState(headingOptions);
+
+  useEffect(() => {
+    setAvailableHeadingOptions(headingOptions);
+  }, [headingOptions]);
 
   const renderedBody = useMemo(() => renderViewBodyHtml(savedBodyHtml), [savedBodyHtml]);
   const linkMatches = useMemo(() => {
     const query = normalizeSearchText(linkQuery);
     const normalizedQueryHeading = normalizeHeadingKey(linkQuery);
-    const ranked = headingOptions
+    const ranked = availableHeadingOptions
       .filter((option) => option.id !== entry.id)
       .map((option) => ({
         ...option,
@@ -60,7 +65,7 @@ export function EntryWorkspace({
 
     if (
       linkQuery.trim() &&
-      !headingOptions.some(
+      !availableHeadingOptions.some(
         (option) =>
           option.id !== entry.id && normalizeHeadingKey(stripHtmlTags(option.heading)) === normalizedQueryHeading
       )
@@ -74,7 +79,7 @@ export function EntryWorkspace({
     }
 
     return ranked;
-  }, [entry.id, headingOptions, linkQuery]);
+  }, [availableHeadingOptions, entry.id, linkQuery]);
 
   const persist = useCallback(async () => {
     const headingHtml = headingEditorRef.current?.getHtml() ?? savedHeadingHtmlRef.current;
@@ -205,6 +210,13 @@ export function EntryWorkspace({
 
       const payload = (await response.json()) as { entry: { id: string } };
       targetId = payload.entry.id;
+      setAvailableHeadingOptions((current) => [
+        ...current,
+        {
+          id: targetId,
+          heading: target.heading
+        }
+      ]);
     }
 
     bodyEditorRef.current?.insertLink(`/entries/${targetId}`, targetId);

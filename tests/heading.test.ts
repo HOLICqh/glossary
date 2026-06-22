@@ -1,4 +1,4 @@
-import { formatHeading, parseHeadingInput } from "@/lib/heading";
+import { formatHeading, parseHeadingInput, stripHtmlTags } from "@/lib/heading";
 
 describe("heading helpers", () => {
   it("formats heading as a single user-facing unit", () => {
@@ -16,5 +16,11 @@ describe("heading helpers", () => {
       headword_pinyin: "Mòzǐ jiāngǔ",
       headword_characters: "墨子閒詁"
     });
+  });
+
+  it("strips tags and decodes HTML entities in headings", () => {
+    expect(stripHtmlTags("T&aacute;n&nbsp;<em>Gōngsūnlóng</em>&nbsp;《墨辯》")).toBe(
+      "Tán Gōngsūnlóng 《墨辯》"
+    );
   });
 });
