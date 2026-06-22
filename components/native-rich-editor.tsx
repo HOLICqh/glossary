@@ -7,7 +7,11 @@ import {
   useRef
 } from "react";
 
-import { sanitizePastedHtml, sanitizePastedText } from "@/lib/editor-html";
+import {
+  normalizeInsertedText,
+  sanitizePastedHtml,
+  sanitizePastedText
+} from "@/lib/editor-html";
 
 export type NativeRichEditorHandle = {
   focus: () => void;
@@ -72,6 +76,38 @@ export const NativeRichEditor = forwardRef<
     editorRef.current?.focus();
     document.execCommand("insertHTML", false, html);
     onDirty?.();
+  }
+
+  function insertTextAtSelection(text: string) {
+    const selection = window.getSelection();
+    const range = getEditorSelectionRange();
+    if (!selection || !range) {
+      return;
+    }
+
+    editorRef.current?.focus();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    range.deleteContents();
+    const textNode = document.createTextNode(text);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    onDirty?.();
+  }
+
+  function getTextBeforeRange(range: Range): string {
+    const editor = editorRef.current;
+    if (!editor) {
+      return "";
+    }
+
+    const prefixRange = range.cloneRange();
+    prefixRange.selectNodeContents(editor);
+    prefixRange.setEnd(range.startContainer, range.startOffset);
+    return prefixRange.toString();
   }
 
   useImperativeHandle(ref, () => ({
@@ -149,7 +185,27 @@ export const NativeRichEditor = forwardRef<
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
+      autoCorrect="on"
       data-placeholder={placeholder ?? ""}
+      onBeforeInput={(event) => {
+        const nativeEvent = event.nativeEvent as InputEvent;
+        if (nativeEvent.inputType !== "insertText" || !nativeEvent.data) {
+          return;
+        }
+
+        if (nativeEvent.data !== "\"" && nativeEvent.data !== "'") {
+          return;
+        }
+
+        const range = getEditorSelectionRange();
+        if (!range) {
+          return;
+        }
+
+        event.preventDefault();
+        const replacement = normalizeInsertedText(nativeEvent.data, getTextBeforeRange(range));
+        insertTextAtSelection(replacement);
+      }}
       onInput={() => {
         if (isComposingRef.current) {
           pendingDirtyRef.current = true;
@@ -188,6 +244,18 @@ export const NativeRichEditor = forwardRef<
       onKeyDown={(event) => {
         if (singleLine && event.key === "Enter") {
           event.preventDefault();
+        }
+
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (event.key === "\"" || event.key === "'") {
+            const range = getEditorSelectionRange();
+            if (range) {
+              event.preventDefault();
+              const replacement = normalizeInsertedText(event.key, getTextBeforeRange(range));
+              insertTextAtSelection(replacement);
+              return;
+            }
+          }
         }
 
         if (!event.altKey && (event.metaKey || event.ctrlKey)) {

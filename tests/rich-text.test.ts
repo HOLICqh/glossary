@@ -1,6 +1,10 @@
 import { JSDOM } from "jsdom";
 
-import { sanitizePastedHtml, sanitizePastedText } from "@/lib/editor-html";
+import {
+  normalizeInsertedText,
+  sanitizePastedHtml,
+  sanitizePastedText
+} from "@/lib/editor-html";
 
 describe("paste sanitization", () => {
   beforeEach(() => {
@@ -28,5 +32,12 @@ describe("paste sanitization", () => {
     expect(sanitizePastedText(text)).toBe(
       "<p>First line<br>still first</p><p>Second paragraph</p>"
     );
+  });
+
+  it("converts straight quotes to smart quotes from context", () => {
+    expect(normalizeInsertedText("\"", "")).toBe("“");
+    expect(normalizeInsertedText("\"", "quoted")).toBe("”");
+    expect(normalizeInsertedText("'", "can")).toBe("’");
+    expect(normalizeInsertedText("'", " (")).toBe("‘");
   });
 });

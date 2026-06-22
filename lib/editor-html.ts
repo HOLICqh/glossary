@@ -109,3 +109,24 @@ export function sanitizePastedText(text: string, singleLine = false): string {
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`)
     .join("");
 }
+
+export function normalizeInsertedText(text: string, beforeText: string): string {
+  if (text === "\"") {
+    return shouldUseOpeningQuote(beforeText) ? "“" : "”";
+  }
+
+  if (text === "'") {
+    return shouldUseOpeningQuote(beforeText) ? "‘" : "’";
+  }
+
+  return text;
+}
+
+function shouldUseOpeningQuote(beforeText: string): boolean {
+  const previous = beforeText.slice(-1);
+  if (!previous) {
+    return true;
+  }
+
+  return /[\s([{\-–—/]/.test(previous);
+}
