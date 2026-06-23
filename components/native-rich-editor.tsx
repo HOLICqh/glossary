@@ -52,6 +52,37 @@ export const NativeRichEditor = forwardRef<
     }
   }, [initialHtml]);
 
+  useEffect(() => {
+    function updateModifierState(active: boolean) {
+      if (editorRef.current) {
+        editorRef.current.dataset.modifierNav = active ? "true" : "false";
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      updateModifierState(event.metaKey || event.ctrlKey);
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+      updateModifierState(event.metaKey || event.ctrlKey);
+    }
+
+    function handleWindowBlur() {
+      updateModifierState(false);
+    }
+
+    updateModifierState(false);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, []);
+
   function rangeBelongsToEditor(range: Range): boolean {
     const editor = editorRef.current;
     if (!editor) {
@@ -240,6 +271,25 @@ export const NativeRichEditor = forwardRef<
         if (sanitized) {
           insertHtmlAtSelection(sanitized);
         }
+      }}
+      onClick={(event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+          return;
+        }
+
+        const anchor = target.closest("a[href]");
+        if (!(anchor instanceof HTMLAnchorElement)) {
+          return;
+        }
+
+        if (event.metaKey || event.ctrlKey) {
+          event.preventDefault();
+          window.location.assign(anchor.href);
+          return;
+        }
+
+        event.preventDefault();
       }}
       onKeyDown={(event) => {
         if (singleLine && event.key === "Enter") {
