@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { EntryWorkspace } from "@/components/entry-workspace";
 import { getUserRole } from "@/lib/auth";
-import { formatHeading } from "@/lib/heading";
 import { getRepository } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +18,7 @@ export default async function EntryPage({
   const query = await searchParams;
   const repo = getRepository();
   const entry = await repo.getById(id);
-  const allEntries = await repo.list();
+  const headingOptions = await repo.listHeadingOptions();
   if (!entry) {
     notFound();
   }
@@ -32,10 +31,7 @@ export default async function EntryPage({
         canEdit={role === "editor"}
         initiallyEditing={role === "editor" ? query.edit !== "0" : false}
         backHref={query.back || "/"}
-        headingOptions={allEntries.map((item) => ({
-          id: item.id,
-          heading: formatHeading(item)
-        }))}
+        headingOptions={headingOptions}
       />
     </AppShell>
   );

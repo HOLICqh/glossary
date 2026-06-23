@@ -3,13 +3,14 @@ import path from "node:path";
 
 import { hasSupabaseConfig } from "@/lib/env";
 import { prepareEntry, searchEntries } from "@/lib/entries";
-import { normalizeHeadingKey, stripHtmlTags } from "@/lib/heading";
+import { formatHeading, normalizeHeadingKey, parseHeadingInput, stripHtmlTags } from "@/lib/heading";
 import { sampleEntries } from "@/lib/sample-data";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
-import type { EntryInput, GlossaryEntry } from "@/lib/types";
+import type { EntryInput, GlossaryEntry, HeadingOption } from "@/lib/types";
 
 export interface GlossaryRepository {
-  list(): Promise<GlossaryEntry[]>;
+  list(limit?: number): Promise<GlossaryEntry[]>;
+  listHeadingOptions(): Promise<HeadingOption[]>;
   getById(id: string): Promise<GlossaryEntry | null>;
   search(query: string, limit?: number): Promise<GlossaryEntry[]>;
   findByHeading(heading: string, excludeId?: string): Promise<GlossaryEntry | null>;
@@ -20,8 +21,18 @@ export interface GlossaryRepository {
 class FileGlossaryRepository implements GlossaryRepository {
   private filePath = path.join(process.cwd(), "data", "glossary.json");
 
-  async list(): Promise<GlossaryEntry[]> {
-    return (await this.readAll()).sort((left, right) => left.sort_key.localeCompare(right.sort_key));
+  async list(limit?: number): Promise<GlossaryEntry[]> {
+    const entries = (await this.readAll()).sort((left, right) => left.sort_key.localeCompare(right.sort_key));
+    return typeof limit === "number" ? entries.slice(0, limit) : entries;
+  }
+
+  async listHeadingOptions(): Promise<HeadingOption[]> {
+    return (await this.readAll())
+      .sort((left, right) => left.sort_key.localeCompare(right.sort_key))
+      .map((entry) => ({
+        id: entry.id,
+        heading: formatHeading(entry)
+      }));
   }
 
   async getById(id: string): Promise<GlossaryEntry | null> {
@@ -107,21 +118,86 @@ type SupabaseGlossaryRow = {
   updated_by: string | null;
 };
 
+const SUPABASE_CACHE_TTL_MS = 10_000;
+
+type TimedCache<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+let cachedSupabaseEntries: TimedCache<GlossaryEntry[]> | null = null;
+let cachedSupabaseHeadingOptions: TimedCache<HeadingOption[]> | null = null;
+
 class SupabaseGlossaryRepository implements GlossaryRepository {
-  async list(): Promise<GlossaryEntry[]> {
-    const { data, error } = await getSupabaseAdmin()
-      .from("glossary_entries")
-      .select("*")
-      .order("sort_key", { ascending: true });
+  async list(limit?: number): Promise<GlossaryEntry[]> {
+    const cachedEntries = this.readEntryCache();
+    if (cachedEntries) {
+      return typeof limit === "number" ? cachedEntries.slice(0, limit) : cachedEntries;
+    }
+
+    let query = getSupabaseAdmin().from("glossary_entries").select("*").order("sort_key", { ascending: true });
+
+    if (typeof limit === "number") {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(`Supabase list failed: ${error.message}`);
     }
 
-    return (data ?? []).map(mapRowToEntry);
+    const entries = (data ?? []).map(mapRowToEntry);
+    if (typeof limit !== "number") {
+      this.writeEntryCache(entries);
+    }
+    return entries;
+  }
+
+  async listHeadingOptions(): Promise<HeadingOption[]> {
+    const cachedHeadingOptions = this.readHeadingOptionCache();
+    if (cachedHeadingOptions) {
+      return cachedHeadingOptions;
+    }
+
+    const cachedEntries = this.readEntryCache();
+    if (cachedEntries) {
+      const derived = cachedEntries.map((entry) => ({
+        id: entry.id,
+        heading: formatHeading(entry)
+      }));
+      this.writeHeadingOptionCache(derived);
+      return derived;
+    }
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("glossary_entries")
+      .select("id, headword_pinyin, headword_characters, heading_rich_text, sort_key")
+      .order("sort_key", { ascending: true });
+
+    if (error) {
+      throw new Error(`Supabase listHeadingOptions failed: ${error.message}`);
+    }
+
+    const options = (data ?? []).map((row) => ({
+      id: row.id as string,
+      heading:
+        (row.heading_rich_text as string | null) ??
+        [row.headword_pinyin as string, (row.headword_characters as string | null) ?? ""]
+          .filter(Boolean)
+          .join(" ")
+          .trim()
+    }));
+    this.writeHeadingOptionCache(options);
+    return options;
   }
 
   async getById(id: string): Promise<GlossaryEntry | null> {
+    const cachedEntries = this.readEntryCache();
+    if (cachedEntries) {
+      return cachedEntries.find((entry) => entry.id === id) ?? null;
+    }
+
     const { data, error } = await getSupabaseAdmin()
       .from("glossary_entries")
       .select("*")
@@ -140,16 +216,32 @@ class SupabaseGlossaryRepository implements GlossaryRepository {
   }
 
   async findByHeading(heading: string, excludeId?: string): Promise<GlossaryEntry | null> {
-    const target = normalizeHeadingKey(stripHtmlTags(heading));
-    const entries = await this.list();
-    return (
-      entries.find((entry) => {
-        if (excludeId && entry.id === excludeId) {
-          return false;
-        }
-        return normalizeHeadingKey(stripHtmlTags(entry.heading_rich_text)) === target;
-      }) ?? null
-    );
+    const headingText = stripHtmlTags(heading);
+    const target = normalizeHeadingKey(headingText);
+    const parsed = parseHeadingInput(headingText);
+
+    let query = getSupabaseAdmin()
+      .from("glossary_entries")
+      .select("*")
+      .eq("headword_pinyin", parsed.headword_pinyin)
+      .eq("headword_characters", parsed.headword_characters || "")
+      .limit(10);
+
+    if (excludeId) {
+      query = query.neq("id", excludeId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Supabase findByHeading failed: ${error.message}`);
+    }
+
+    const exact = (data ?? [])
+      .map((row) => mapRowToEntry(row as SupabaseGlossaryRow))
+      .find((entry) => normalizeHeadingKey(stripHtmlTags(entry.heading_rich_text)) === target);
+
+    return exact ?? null;
   }
 
   async upsert(input: EntryInput): Promise<GlossaryEntry> {
@@ -170,7 +262,9 @@ class SupabaseGlossaryRepository implements GlossaryRepository {
       throw new Error(`Supabase upsert failed: ${error.message}`);
     }
 
-    return mapRowToEntry(data as SupabaseGlossaryRow);
+    const saved = mapRowToEntry(data as SupabaseGlossaryRow);
+    this.invalidateCaches();
+    return saved;
   }
 
   async delete(id: string): Promise<void> {
@@ -178,6 +272,52 @@ class SupabaseGlossaryRepository implements GlossaryRepository {
     if (error) {
       throw new Error(`Supabase delete failed: ${error.message}`);
     }
+    this.invalidateCaches();
+  }
+
+  private readEntryCache(): GlossaryEntry[] | null {
+    if (!cachedSupabaseEntries) {
+      return null;
+    }
+
+    if (cachedSupabaseEntries.expiresAt <= Date.now()) {
+      cachedSupabaseEntries = null;
+      return null;
+    }
+
+    return cachedSupabaseEntries.value;
+  }
+
+  private writeEntryCache(entries: GlossaryEntry[]) {
+    cachedSupabaseEntries = {
+      value: entries,
+      expiresAt: Date.now() + SUPABASE_CACHE_TTL_MS
+    };
+  }
+
+  private readHeadingOptionCache(): HeadingOption[] | null {
+    if (!cachedSupabaseHeadingOptions) {
+      return null;
+    }
+
+    if (cachedSupabaseHeadingOptions.expiresAt <= Date.now()) {
+      cachedSupabaseHeadingOptions = null;
+      return null;
+    }
+
+    return cachedSupabaseHeadingOptions.value;
+  }
+
+  private writeHeadingOptionCache(options: HeadingOption[]) {
+    cachedSupabaseHeadingOptions = {
+      value: options,
+      expiresAt: Date.now() + SUPABASE_CACHE_TTL_MS
+    };
+  }
+
+  private invalidateCaches() {
+    cachedSupabaseEntries = null;
+    cachedSupabaseHeadingOptions = null;
   }
 }
 

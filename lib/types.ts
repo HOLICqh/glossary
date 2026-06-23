@@ -59,6 +59,12 @@ export type SearchResult = {
   matches: string[];
 };
 
+export type HeadingOption = {
+  id: string;
+  heading: string;
+  create?: boolean;
+};
+
 export type QualityIssue = {
   entryId: string;
   severity: "warning" | "error";

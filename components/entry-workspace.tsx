@@ -6,17 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
 import { formatHeading, normalizeHeadingKey, stripHtmlTags } from "@/lib/heading";
 import { normalizeSearchText } from "@/lib/pinyin";
-import type { GlossaryEntry } from "@/lib/types";
+import type { GlossaryEntry, HeadingOption } from "@/lib/types";
 import {
   NativeRichEditor,
   type NativeRichEditorHandle
 } from "@/components/native-rich-editor";
-
-type HeadingOption = {
-  id: string;
-  heading: string;
-  create?: boolean;
-};
 
 export function EntryWorkspace({
   entry,
