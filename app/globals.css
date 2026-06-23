@@ -260,7 +260,7 @@ button {
   border-color: #cf9aa7;
 }
 
-.entry-preview-link h2 {
+.entry-preview-card h2 {
   font-size: var(--heading-size);
   line-height: 1.45;
 }
@@ -315,7 +315,8 @@ button {
 
 .heading-editor,
 .entry-workspace h1,
-.entry-preview-link h2 {
+.entry-preview-card h2,
+.entry-preview-heading-link {
   font-family: var(--entry-font) !important;
 }
 
@@ -364,7 +365,8 @@ button {
 .body-editor,
 .heading-editor,
 .entry-workspace h1,
-.entry-preview-link h2,
+.entry-preview-card h2,
+.entry-preview-heading-link,
 .entry-preview-body {
   font-family: var(--entry-font);
 }
@@ -373,7 +375,8 @@ button {
 .body-editor *,
 .heading-editor *,
 .entry-workspace h1 *,
-.entry-preview-link h2 *,
+.entry-preview-card h2 *,
+.entry-preview-heading-link *,
 .entry-preview-body * {
   font-family: var(--entry-font) !important;
   font-size: inherit !important;
@@ -382,12 +385,13 @@ button {
 
 .heading-editor *,
 .entry-workspace h1 *,
-.entry-preview-link h2 * {
+.entry-preview-card h2 *,
+.entry-preview-heading-link * {
   font-weight: inherit !important;
 }
 
 .entry-workspace h1,
-.entry-preview-link h2 {
+.entry-preview-card h2 {
   font-size: var(--heading-size);
   font-weight: 650;
 }
