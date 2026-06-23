@@ -188,6 +188,10 @@ export function EntryList({
         {entries.map((entry) => (
           (() => {
             const placeholderEntry = containsPlaceholderTag(entry.body_rich_text);
+            const previewClassName =
+              editor && placeholderEntry
+                ? "panel entry-preview-card placeholder-entry"
+                : "panel entry-preview-card";
             return (
           <div
             key={entry.id}
@@ -202,22 +206,33 @@ export function EntryList({
                 />
               </label>
             ) : null}
-            <Link
-              href={`/entries/${entry.id}${backHref ? `?back=${encodeURIComponent(backHref)}` : ""}`}
-              className={
-                editor && placeholderEntry
-                  ? "panel entry-preview-card entry-preview-link placeholder-entry"
-                  : "panel entry-preview-card entry-preview-link"
-              }
-            >
-              <h2 dangerouslySetInnerHTML={{ __html: formatHeading(entry) }} />
-              <div
-                className="entry-preview-body line-clamp-6"
-                dangerouslySetInnerHTML={{
-                  __html: stripLinksFromHtml(renderViewBodyHtml(entry.body_rich_text))
-                }}
-              />
-            </Link>
+            {editor ? (
+              <div className={previewClassName}>
+                <h2>
+                  <Link
+                    href={`/entries/${entry.id}${backHref ? `?back=${encodeURIComponent(backHref)}` : ""}`}
+                    className="entry-preview-heading-link"
+                    dangerouslySetInnerHTML={{ __html: formatHeading(entry) }}
+                  />
+                </h2>
+                <div
+                  className="entry-preview-body"
+                  dangerouslySetInnerHTML={{
+                    __html: renderViewBodyHtml(entry.body_rich_text)
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="panel entry-preview-card entry-preview-card-public">
+                <h2 dangerouslySetInnerHTML={{ __html: formatHeading(entry) }} />
+                <div
+                  className="entry-preview-body"
+                  dangerouslySetInnerHTML={{
+                    __html: renderViewBodyHtml(entry.body_rich_text)
+                  }}
+                />
+              </div>
+            )}
           </div>
             );
           })()
