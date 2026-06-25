@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
 import { formatHeading, normalizeHeadingKey, stripHtmlTags } from "@/lib/heading";
-import { normalizeSearchText } from "@/lib/pinyin";
+import { normalizeCompactSearchText, normalizeSearchText, tokens } from "@/lib/pinyin";
 import type { GlossaryEntry, HeadingOption } from "@/lib/types";
 import {
   NativeRichEditor,
@@ -354,11 +354,15 @@ export function EntryWorkspace({
   );
 }
 
-function scoreHeading(heading: string, query: string): number {
+export function scoreHeading(heading: string, query: string): number {
   if (!query) {
     return 0;
   }
+
   const normalizedHeading = normalizeSearchText(stripHtmlTags(heading));
+  const compactHeading = normalizeCompactSearchText(stripHtmlTags(heading));
+  const compactQuery = normalizeCompactSearchText(query);
+
   if (normalizedHeading === query) {
     return 50;
   }
@@ -368,5 +372,24 @@ function scoreHeading(heading: string, query: string): number {
   if (normalizedHeading.includes(query)) {
     return 20;
   }
-  return 0;
+
+  if (compactQuery && compactHeading === compactQuery) {
+    return 40;
+  }
+  if (compactQuery && compactHeading.includes(compactQuery)) {
+    return 24;
+  }
+
+  const queryTokens = tokens(query);
+  if (!queryTokens.length) {
+    return 0;
+  }
+
+  const matchCount = queryTokens.filter((token) => normalizedHeading.includes(token)).length;
+  if (!matchCount) {
+    return 0;
+  }
+
+  const coverageScore = Math.round((matchCount / queryTokens.length) * 18);
+  return 6 + matchCount * 4 + coverageScore;
 }

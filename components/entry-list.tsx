@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { FileMenu } from "@/components/file-menu";
-import { containsPlaceholderTag, renderViewBodyHtml, stripLinksFromHtml } from "@/lib/body";
+import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
 import { formatHeading } from "@/lib/heading";
+import { normalizeTagValue, summarizeTags } from "@/lib/tag-helpers";
 import type { GlossaryEntry } from "@/lib/types";
 
 export function EntryList({
@@ -23,10 +24,22 @@ export function EntryList({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [tagActionMessage, setTagActionMessage] = useState("");
+  const [tagActionPending, setTagActionPending] = useState<"add" | "remove" | "">("");
   const allSelected = useMemo(
     () => entries.length > 0 && entries.every((entry) => selectedIds.includes(entry.id)),
     [entries, selectedIds]
   );
+  const selectedEntries = useMemo(
+    () => entries.filter((entry) => selectedIds.includes(entry.id)),
+    [entries, selectedIds]
+  );
+  const selectedTagCounts = useMemo(() => {
+    return summarizeTags(selectedEntries.map((entry) => entry.body_rich_text));
+  }, [selectedEntries]);
+  const normalizedTagInput = normalizeTagValue(tagInput);
 
   function toggleOne(id: string) {
     setSelectedIds((current) =>
@@ -36,6 +49,42 @@ export function EntryList({
 
   function toggleAll() {
     setSelectedIds(allSelected ? [] : entries.map((entry) => entry.id));
+  }
+
+  async function applyTagAction(action: "add" | "remove") {
+    if (!selectedIds.length || !normalizedTagInput) {
+      return;
+    }
+
+    setTagActionPending(action);
+    setTagActionMessage("");
+    try {
+      const response = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: selectedIds,
+          action,
+          tag: normalizedTagInput
+        })
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error || "Tag update failed.");
+      }
+
+      setTagActionMessage(
+        action === "add"
+          ? `${normalizedTagInput} added to ${selectedIds.length} entr${selectedIds.length === 1 ? "y" : "ies"}.`
+          : `${normalizedTagInput} removed from ${selectedIds.length} entr${selectedIds.length === 1 ? "y" : "ies"}.`
+      );
+      router.refresh();
+    } catch (error) {
+      setTagActionMessage(error instanceof Error ? error.message : "Tag update failed.");
+    } finally {
+      setTagActionPending("");
+    }
   }
 
   async function exportSelected(format: "rtf" | "txt") {
@@ -151,6 +200,16 @@ export function EntryList({
               <button
                 type="button"
                 className="list-icon-button"
+                aria-label="Manage tags"
+                title="Manage tags"
+                disabled={selectedIds.length === 0}
+                onClick={() => setShowTagManager((current) => !current)}
+              >
+                #
+              </button>
+              <button
+                type="button"
+                className="list-icon-button"
                 aria-label="Alphabetize current selection"
                 title="Alphabetize current selection"
                 disabled={selectedIds.length === 0}
@@ -181,6 +240,55 @@ export function EntryList({
             </div>
           </div>
           {importStatus ? <p className="list-status muted">{importStatus}</p> : null}
+          {showTagManager ? (
+            <div className="tag-manager panel">
+              <div className="tag-manager-header">
+                <strong>Manage tags</strong>
+                <span className="muted">
+                  {selectedIds.length} selected entr{selectedIds.length === 1 ? "y" : "ies"}
+                </span>
+              </div>
+              <div className="tag-manager-tags">
+                {selectedTagCounts.length ? (
+                  selectedTagCounts.map(({ tag, count }) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className="tag-chip"
+                      onClick={() => setTagInput(tag)}
+                    >
+                      {tag} ({count})
+                    </button>
+                  ))
+                ) : (
+                  <span className="muted">No tags in current selection.</span>
+                )}
+              </div>
+              <div className="tag-manager-controls">
+                <input
+                  type="text"
+                  value={tagInput}
+                  placeholder="Add or remove tag"
+                  onChange={(event) => setTagInput(event.target.value)}
+                />
+                <button
+                  type="button"
+                  disabled={!normalizedTagInput || tagActionPending !== ""}
+                  onClick={() => void applyTagAction("add")}
+                >
+                  {tagActionPending === "add" ? "Adding..." : "Add to selected"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!normalizedTagInput || tagActionPending !== ""}
+                  onClick={() => void applyTagAction("remove")}
+                >
+                  {tagActionPending === "remove" ? "Removing..." : "Remove from selected"}
+                </button>
+              </div>
+              {tagActionMessage ? <p className="muted tag-manager-message">{tagActionMessage}</p> : null}
+            </div>
+          ) : null}
         </>
       ) : null}
 

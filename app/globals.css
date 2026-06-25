@@ -223,6 +223,40 @@ button {
   gap: 8px;
 }
 
+.tag-manager {
+  margin: 8px 0 14px;
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.tag-manager-header,
+.tag-manager-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tag-manager-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag-chip {
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+.tag-manager-controls input {
+  flex: 1 1 220px;
+}
+
+.tag-manager-message {
+  margin: 0;
+}
+
 .entry-preview-card h2,
 .entry-preview-card h3,
 .entry-heading h1 {

@@ -1,4 +1,10 @@
-import { containsPlaceholderTag, renderViewBodyHtml, stripHashtagsFromHtml, stripLinksFromHtml } from "@/lib/body";
+import {
+  containsPlaceholderTag,
+  extractTagsFromHtml,
+  renderViewBodyHtml,
+  stripHashtagsFromHtml,
+  stripLinksFromHtml
+} from "@/lib/body";
 
 describe("stripHashtagsFromHtml", () => {
   it("hides hashtags in rendered view output", () => {
@@ -15,5 +21,9 @@ describe("stripHashtagsFromHtml", () => {
   it("treats #placeholder as a body-level visibility flag", () => {
     expect(containsPlaceholderTag("<p>#placeholder</p>")).toBe(true);
     expect(renderViewBodyHtml("<p>Visible text #placeholder</p>")).toBe("");
+  });
+
+  it("extracts hashtags from entry html", () => {
+    expect(extractTagsFromHtml("<p>#draft text #mohism</p>")).toEqual(["#draft", "#mohism"]);
   });
 });

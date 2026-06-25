@@ -65,6 +65,13 @@ export type HeadingOption = {
   create?: boolean;
 };
 
+export type BulkTagUpdate = {
+  id: string;
+  body_rich_text: string;
+  tags: string[];
+  updated_by: string;
+};
+
 export type QualityIssue = {
   entryId: string;
   severity: "warning" | "error";

@@ -7,6 +7,7 @@ import {
   tokens
 } from "@/lib/pinyin";
 import { richTextToPlainText } from "@/lib/rich-text";
+import { normalizeEntryBodyTags } from "@/lib/tag-manager";
 import type { EntryInput, GlossaryEntry, SearchResult } from "@/lib/types";
 
 export function buildPlainTextSearchCache(input: {
@@ -32,7 +33,8 @@ export function buildPlainTextSearchCache(input: {
 
 export function prepareEntry(input: EntryInput): GlossaryEntry {
   const now = new Date().toISOString();
-  const isPlaceholder = containsPlaceholderTag(input.body_rich_text);
+  const normalizedTags = normalizeEntryBodyTags(input.body_rich_text);
+  const isPlaceholder = containsPlaceholderTag(normalizedTags.html);
   const nextStatus =
     isPlaceholder ? "placeholder" : input.status === "placeholder" ? "draft" : input.status;
   const nextEntryType =
@@ -46,7 +48,13 @@ export function prepareEntry(input: EntryInput): GlossaryEntry {
       [input.headword_pinyin, input.headword_characters].filter(Boolean).join(" ").trim(),
     id: input.id ?? crypto.randomUUID(),
     sort_key: input.sort_key || normalizePinyinForSort(input.headword_pinyin),
-    plain_text_search_cache: buildPlainTextSearchCache(input),
+    body_rich_text: normalizedTags.html,
+    tags: normalizedTags.tags,
+    plain_text_search_cache: buildPlainTextSearchCache({
+      ...input,
+      body_rich_text: normalizedTags.html,
+      tags: normalizedTags.tags
+    }),
     created_at: input.id ? now : now,
     updated_at: now
   };

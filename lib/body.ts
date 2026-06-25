@@ -1,3 +1,9 @@
+const tagPattern = /#[\p{L}\p{N}_-]+/gu;
+
+export function extractTagsFromHtml(html: string): string[] {
+  return Array.from(html.matchAll(tagPattern), (match) => match[0].toLocaleLowerCase());
+}
+
 export function stripHashtagsFromHtml(html: string): string {
   return html
     .replace(/(^|>|\s)#[\p{L}\p{N}_-]+/gu, "$1")
