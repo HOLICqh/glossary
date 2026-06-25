@@ -50,7 +50,7 @@ class FileGlossaryRepository implements GlossaryRepository {
     return (await this.readAll()).filter((entry) => requested.has(entry.id));
   }
 
-  async search(query: string, limit = 20): Promise<GlossaryEntry[]> {
+  async search(query: string, limit?: number): Promise<GlossaryEntry[]> {
     return searchEntries(await this.list(), query, limit).map((result) => result.entry);
   }
 
@@ -273,7 +273,7 @@ class SupabaseGlossaryRepository implements GlossaryRepository {
     return (data ?? []).map((row) => mapRowToEntry(row as SupabaseGlossaryRow));
   }
 
-  async search(query: string, limit = 20): Promise<GlossaryEntry[]> {
+  async search(query: string, limit?: number): Promise<GlossaryEntry[]> {
     return searchEntries(await this.list(), query, limit).map((result) => result.entry);
   }
 

@@ -28,7 +28,7 @@ export function SearchBar() {
     >
       <input
         aria-label="Search glossary"
-        placeholder="Search headings, body text, or hashtags"
+        placeholder="Search headings, body text, or hashtags; use -term to exclude"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />

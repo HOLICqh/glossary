@@ -19,7 +19,7 @@ export default async function HomePage({
   const importedIds = importedParam?.split(",").filter(Boolean) ?? [];
   const selectedIds = params.selected?.split(",").filter(Boolean) ?? [];
   const baseEntries = params.q
-    ? await repo.search(params.q, 20)
+    ? await repo.search(params.q, role === "editor" ? undefined : 20)
     : await repo.list(role === "editor" ? undefined : 20);
   const filteredEntries =
     importedParam === "none"
