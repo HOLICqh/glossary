@@ -13,6 +13,17 @@ describe("stripHashtagsFromHtml", () => {
     expect(stripHashtagsFromHtml(html)).not.toContain("#draft");
   });
 
+  it("strips hand-added hashtags even when attached directly to body text", () => {
+    const html = "<p>Mòzǐ is discussed here.#draft</p>";
+    expect(stripHashtagsFromHtml(html)).toContain("Mòzǐ is discussed here.");
+    expect(stripHashtagsFromHtml(html)).not.toContain("#draft");
+  });
+
+  it("preserves meaningful spaces between adjacent inline tags", () => {
+    const html = '<p><i><a href="/entries/test">Zhèngmíng</a> </i><span>chapter</span></p>';
+    expect(stripHashtagsFromHtml(html)).toContain('Zhèngmíng</a> </i><span>chapter');
+  });
+
   it("removes nested links for preview cards while keeping the text", () => {
     const html = '<p>See <a href="/entries/mozi"><em>Mòzǐ</em></a> here.</p>';
     expect(stripLinksFromHtml(html)).toBe("<p>See <em>Mòzǐ</em> here.</p>");
@@ -21,6 +32,7 @@ describe("stripHashtagsFromHtml", () => {
   it("treats #placeholder as a body-level visibility flag", () => {
     expect(containsPlaceholderTag("<p>#placeholder</p>")).toBe(true);
     expect(renderViewBodyHtml("<p>Visible text #placeholder</p>")).toBe("");
+    expect(renderViewBodyHtml("<p>Visible text#placeholder</p>")).toBe("");
   });
 
   it("extracts hashtags from entry html", () => {

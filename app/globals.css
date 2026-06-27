@@ -532,6 +532,31 @@ button {
   z-index: 20;
 }
 
+.export-menu-panel {
+  min-width: 12rem;
+}
+
+.file-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.file-menu-close {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .file-menu-panel button {
   text-align: left;
 }
@@ -604,6 +629,11 @@ button {
 }
 
 .list-icon-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.list-icon-button-disabled {
   opacity: 0.45;
   cursor: default;
 }

@@ -62,6 +62,18 @@ export function FileMenu({ editor }: { editor: boolean }) {
       <details ref={detailsRef} className="file-menu">
         <summary aria-label="Import file" title="Import file">⤒</summary>
         <div className="file-menu-panel">
+          <div className="file-menu-header">
+            <span>Import</span>
+            <button
+              type="button"
+              className="file-menu-close"
+              aria-label="Close import dialog"
+              title="Close"
+              onClick={() => detailsRef.current?.removeAttribute("open")}
+            >
+              ×
+            </button>
+          </div>
           {editor ? (
             <>
               <button type="button" disabled={isImporting} onClick={() => inputRef.current?.click()}>

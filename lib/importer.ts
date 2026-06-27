@@ -1,6 +1,6 @@
 import { JSDOM } from "jsdom";
 
-import { stripHtmlTags } from "@/lib/heading";
+import { parseHeadingInput, stripHtmlTags } from "@/lib/heading";
 import { normalizePinyinForSort } from "@/lib/pinyin";
 import type { EntryInput } from "@/lib/types";
 
@@ -173,5 +173,90 @@ function parseHtmlParagraph(innerHtml: string, userId: string): EntryInput | nul
     }
   }
 
+  const structured = parseStructuredHtmlParagraph(cleanedHtml, userId);
+  if (structured) {
+    return structured;
+  }
+
   return parsePlainParagraph(plainText, userId);
+}
+
+function parseStructuredHtmlParagraph(innerHtml: string, userId: string): EntryInput | null {
+  const dom = new JSDOM(`<body><p>${innerHtml}</p></body>`);
+  const paragraph = dom.window.document.querySelector("p");
+  if (!paragraph) {
+    return null;
+  }
+
+  const nodes = Array.from(paragraph.childNodes);
+  for (let index = 1; index <= nodes.length; index += 1) {
+    const headingHtmlRaw = nodes
+      .slice(0, index)
+      .map((node) => serializeNode(node))
+      .join("")
+      .trim();
+    const bodyHtmlRaw = nodes
+      .slice(index)
+      .map((node) => serializeNode(node))
+      .join("")
+      .trim();
+
+    const headingText = stripHtmlTags(headingHtmlRaw).replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    const bodyText = stripHtmlTags(bodyHtmlRaw).replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+
+    if (!headingText || !bodyText) {
+      continue;
+    }
+
+    const headingParts = parseHeadingInput(headingText);
+    const normalizedHeading = [headingParts.headword_pinyin, headingParts.headword_characters]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (!headingParts.headword_pinyin || !headingParts.headword_characters) {
+      continue;
+    }
+
+    if (normalizeSpaces(headingText) !== normalizeSpaces(normalizedHeading)) {
+      continue;
+    }
+
+    return {
+      headword_pinyin: headingParts.headword_pinyin,
+      headword_characters: headingParts.headword_characters,
+      heading_rich_text: headingHtmlRaw,
+      sort_key: normalizePinyinForSort(headingParts.headword_pinyin),
+      english_gloss_or_translation: "",
+      entry_type: "text",
+      body_rich_text: `<p>${trimLeadingWhitespace(bodyHtmlRaw)}</p>`,
+      status: "draft",
+      tags: ["imported", "rtf"],
+      related_entries: [],
+      created_by: userId,
+      updated_by: userId
+    };
+  }
+
+  return null;
+}
+
+function serializeNode(node: ChildNode): string {
+  if (node.nodeType === node.TEXT_NODE) {
+    return escapeHtml(node.textContent ?? "");
+  }
+
+  if (node.nodeType === node.ELEMENT_NODE) {
+    return (node as HTMLElement).outerHTML;
+  }
+
+  return "";
+}
+
+function trimLeadingWhitespace(html: string): string {
+  return html.replace(/^(?:\s|&nbsp;|\u00a0)+/iu, "");
+}
+
+function normalizeSpaces(value: string): string {
+  return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }

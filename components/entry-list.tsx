@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { FileMenu } from "@/components/file-menu";
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
@@ -23,11 +23,13 @@ export function EntryList({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const exportMenuRef = useRef<HTMLDetailsElement>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showTagManager, setShowTagManager] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [tagActionMessage, setTagActionMessage] = useState("");
   const [tagActionPending, setTagActionPending] = useState<"add" | "remove" | "">("");
+  const [stripTagsOnExport, setStripTagsOnExport] = useState(true);
   const allSelected = useMemo(
     () => entries.length > 0 && entries.every((entry) => selectedIds.includes(entry.id)),
     [entries, selectedIds]
@@ -41,10 +43,39 @@ export function EntryList({
   }, [selectedEntries]);
   const normalizedTagInput = normalizeTagValue(tagInput);
 
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const key = `glossary-scroll:${window.location.pathname}${window.location.search}`;
+    const saved = window.sessionStorage.getItem(key);
+    if (!saved) {
+      return;
+    }
+
+    const scrollY = Number(saved);
+    window.sessionStorage.removeItem(key);
+    if (!Number.isFinite(scrollY)) {
+      return;
+    }
+
+    window.scrollTo({ top: scrollY, behavior: "auto" });
+  }, [entries.length]);
+
   useEffect(() => {
     const visibleIds = new Set(entries.map((entry) => entry.id));
     setSelectedIds((current) => current.filter((id) => visibleIds.has(id)));
   }, [entries]);
+
+  function rememberScrollPosition() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const key = `glossary-scroll:${window.location.pathname}${window.location.search}`;
+    window.sessionStorage.setItem(key, String(window.scrollY));
+  }
 
   function toggleOne(id: string) {
     setSelectedIds((current) =>
@@ -97,52 +128,64 @@ export function EntryList({
       return;
     }
 
-    const response = await fetch("/api/export-current-list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ids: selectedIds,
-        format
-      })
-    });
-
-    const blob = await response.blob();
-    const fileName = format === "rtf" ? "glossary-current-selection.rtf" : "glossary-current-selection.txt";
-
-    if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
-      const picker = await (window as Window & {
-        showSaveFilePicker?: (options: {
-          suggestedName: string;
-          types: Array<{ description: string; accept: Record<string, string[]> }>;
-        }) => Promise<{
-          createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }>;
-        }>;
-      }).showSaveFilePicker?.({
-        suggestedName: fileName,
-        types: [
-          {
-            description: format === "rtf" ? "Rich Text Format" : "Plain Text",
-            accept: {
-              [format === "rtf" ? "application/rtf" : "text/plain"]: [`.${format}`]
-            }
-          }
-        ]
+    try {
+      const response = await fetch("/api/export-current-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: selectedIds,
+          format,
+          stripTags: stripTagsOnExport
+        })
       });
 
-      if (picker) {
-        const writable = await picker.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        return;
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Export failed.");
       }
-    }
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
+      const blob = await response.blob();
+      const fileName = format === "rtf" ? "glossary-current-selection.rtf" : "glossary-current-selection.txt";
+
+      if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
+        const picker = await (window as Window & {
+          showSaveFilePicker?: (options: {
+            suggestedName: string;
+            types: Array<{ description: string; accept: Record<string, string[]> }>;
+          }) => Promise<{
+            createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }>;
+          }>;
+        }).showSaveFilePicker?.({
+          suggestedName: fileName,
+          types: [
+            {
+              description: format === "rtf" ? "Rich Text Format" : "Plain Text",
+              accept: {
+                [format === "rtf" ? "application/rtf" : "text/plain"]: [`.${format}`]
+              }
+            }
+          ]
+        });
+
+        if (picker) {
+          const writable = await picker.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          exportMenuRef.current?.removeAttribute("open");
+          return;
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+      exportMenuRef.current?.removeAttribute("open");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Export failed.");
+    }
   }
 
   async function deleteSelected() {
@@ -222,16 +265,45 @@ export function EntryList({
               >
                 A-Z
               </button>
-              <button
-                type="button"
-                className="list-icon-button"
-                aria-label="Export current selection"
-                title="Export current selection"
-                disabled={selectedIds.length === 0}
-                onClick={() => void exportSelected("rtf")}
-              >
-                ⤓
-              </button>
+              <details className="file-menu" ref={exportMenuRef}>
+                <summary
+                  aria-label="Export current selection"
+                  title="Export current selection"
+                  className={selectedIds.length === 0 ? "list-icon-button list-icon-button-disabled" : undefined}
+                  onClick={(event) => {
+                    if (selectedIds.length === 0) {
+                      event.preventDefault();
+                    }
+                  }}
+                >
+                  ⤓
+                </summary>
+                <div className="file-menu-panel export-menu-panel">
+                  <div className="file-menu-header">
+                    <span>Export</span>
+                    <button
+                      type="button"
+                      className="file-menu-close"
+                      aria-label="Close export dialog"
+                      title="Close"
+                      onClick={() => exportMenuRef.current?.removeAttribute("open")}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <button type="button" disabled={selectedIds.length === 0} onClick={() => void exportSelected("rtf")}>
+                    Export RTF
+                  </button>
+                  <label className="file-menu-option">
+                    <input
+                      type="checkbox"
+                      checked={stripTagsOnExport}
+                      onChange={(event) => setStripTagsOnExport(event.target.checked)}
+                    />
+                    Remove tags
+                  </label>
+                </div>
+              </details>
               <button
                 type="button"
                 className="list-icon-button"
@@ -324,7 +396,9 @@ export function EntryList({
                 <h2>
                   <Link
                     href={`/entries/${entry.id}${backHref ? `?back=${encodeURIComponent(backHref)}` : ""}`}
+                    scroll={false}
                     className="entry-preview-heading-link"
+                    onClick={rememberScrollPosition}
                     dangerouslySetInnerHTML={{ __html: formatHeading(entry) }}
                   />
                 </h2>

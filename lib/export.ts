@@ -1,6 +1,7 @@
 import { JSDOM } from "jsdom";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 
+import { stripHashtagsFromHtml } from "@/lib/body";
 import { formatHeading, parseHeadingInput, stripHtmlTags } from "@/lib/heading";
 import { containsHan } from "@/lib/pinyin";
 import type { GlossaryEntry } from "@/lib/types";
@@ -73,10 +74,10 @@ export function exportEntriesToRtf(entries: GlossaryEntry[]): string {
           const text = escapeRtf(element.textContent ?? "");
           const tag = element.tagName.toLowerCase();
           if (tag === "em" || tag === "i") {
-            return `\\i ${text}\\i0 `;
+            return `{\\i ${text}}`;
           }
           if (tag === "strong" || tag === "b") {
-            return `\\b ${text}\\b0 `;
+            return `{\\b ${text}}`;
           }
           return text;
         }
@@ -96,20 +97,28 @@ export function exportEntriesToRtf(entries: GlossaryEntry[]): string {
   return `{\\rtf1\\ansi\n${lines.join("\n")}\n}`;
 }
 
-export function exportEntriesToCurrentListText(entries: GlossaryEntry[]): string {
+export function exportEntriesToCurrentListText(
+  entries: GlossaryEntry[],
+  options: { stripTags?: boolean } = {}
+): string {
   return sortEntriesForExport(entries)
     .map((entry) => {
       const heading = exportHeadingText(entry);
-      const body = stripHtmlTags(entry.body_rich_text);
+      const sourceBody = options.stripTags ? stripHashtagsFromHtml(entry.body_rich_text) : entry.body_rich_text;
+      const body = stripHtmlTags(sourceBody);
       return `${heading} ${body}`.trim();
     })
     .join("\n\n");
 }
 
-export function exportEntriesToCurrentListRtf(entries: GlossaryEntry[]): string {
+export function exportEntriesToCurrentListRtf(
+  entries: GlossaryEntry[],
+  options: { stripTags?: boolean } = {}
+): string {
   const lines = sortEntriesForExport(entries).map((entry) => {
     const heading = exportHeadingRtf(entry);
-    const body = htmlToInlineRtf(entry.body_rich_text);
+    const sourceBody = options.stripTags ? stripHashtagsFromHtml(entry.body_rich_text) : entry.body_rich_text;
+    const body = htmlToInlineRtf(sourceBody);
     return `${heading}${body ? `\\~${body}` : ""}`.trim();
   });
 
@@ -217,11 +226,11 @@ function serializeNode(
     .join("");
 
   if ((tag === "i" || tag === "em") && options.preserveItalics !== false) {
-    return [`\\i ${inner}\\i0 `];
+    return [`{\\i ${inner}}`];
   }
 
   if ((tag === "b" || tag === "strong") && options.preserveBold !== false) {
-    return [`\\b ${inner}\\b0 `];
+    return [`{\\b ${inner}}`];
   }
 
   if (tag === "a") {

@@ -222,7 +222,23 @@ export function EntryWorkspace({
   return (
     <article className="panel entry-workspace">
       <div className="workspace-bar">
-        <a href={backHref}>Back to results</a>
+        <a
+          href={backHref}
+          onClick={(event) => {
+            if (typeof window === "undefined") {
+              return;
+            }
+
+            const referrer = document.referrer;
+            const sameOriginReferrer = referrer.startsWith(window.location.origin);
+            if (sameOriginReferrer && window.history.length > 1) {
+              event.preventDefault();
+              window.history.back();
+            }
+          }}
+        >
+          Back to results
+        </a>
         <div className="workspace-controls">
           {canEdit ? (
             <div className="mode-toggle" role="group" aria-label="Entry mode">

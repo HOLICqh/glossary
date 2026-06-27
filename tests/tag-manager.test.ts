@@ -21,6 +21,13 @@ describe("tag manager", () => {
     expect(extractTagsFromHtml(removed.html)).toEqual([]);
   });
 
+  it("normalizes and removes tags that were attached directly to text", () => {
+    const normalized = normalizeEntryBodyTags("<p>Alpha#draft beta.</p>");
+    expect(normalized.tags).toEqual(["#draft"]);
+    expect(normalized.html).toContain("<p>Alpha beta.</p>");
+    expect(normalized.html).toContain("<p>#draft</p>");
+  });
+
   it("normalizes tag input to a lowercase hashtag", () => {
     expect(normalizeTagValue("  Mohism  ")).toBe("#mohism");
   });

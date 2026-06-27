@@ -10,6 +10,7 @@ export async function POST(request: Request) {
   const body = (await request.json()) as {
     ids?: string[];
     format?: "rtf" | "txt";
+    stripTags?: boolean;
   };
   const format = body.format ?? "rtf";
 
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
   const entries = body.ids?.length ? allEntries.filter((entry) => body.ids?.includes(entry.id)) : allEntries;
 
   if (format === "txt") {
-    return new Response(exportEntriesToCurrentListText(entries), {
+    return new Response(exportEntriesToCurrentListText(entries, { stripTags: body.stripTags }), {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Content-Disposition": 'attachment; filename="glossary-current-list.txt"'
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     });
   }
 
-  return new Response(exportEntriesToCurrentListRtf(entries), {
+  return new Response(exportEntriesToCurrentListRtf(entries, { stripTags: body.stripTags }), {
     headers: {
       "Content-Type": "application/rtf; charset=utf-8",
       "Content-Disposition": 'attachment; filename="glossary-current-list.rtf"'

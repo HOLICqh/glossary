@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 
 import { normalizeTagValue } from "@/lib/tag-helpers";
 
-const tagPattern = /(^|[\s\u00a0])(#[\p{L}\p{N}_-]+)/gu;
+const tagPattern = /(#[\p{L}\p{N}_-]+)/gu;
 
 export function normalizeEntryBodyTags(
   html: string,
@@ -27,14 +27,17 @@ export function normalizeEntryBodyTags(
   for (const node of textNodes) {
     const source = node.textContent ?? "";
     let changed = false;
-    const cleaned = source.replace(tagPattern, (_match, prefix: string, tag: string) => {
-      discoveredTags.push(normalizeTagValue(tag));
+    const cleaned = source.replace(tagPattern, (match: string) => {
+      const tag = normalizeTagValue(match);
+      discoveredTags.push(tag);
       changed = true;
-      return prefix;
+      return "";
     });
 
     if (changed) {
-      node.textContent = cleaned.replace(/[ \t\u00a0]{2,}/g, " ");
+      node.textContent = cleaned
+        .replace(/[ \t\u00a0]{2,}/g, " ")
+        .replace(/\s+([,.;:!?)}\]》〉」』，。：；？！])/gu, "$1");
     }
   }
 
