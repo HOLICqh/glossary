@@ -1,7 +1,8 @@
 import { JSDOM } from "jsdom";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 
-import { formatHeading, stripHtmlTags } from "@/lib/heading";
+import { formatHeading, parseHeadingInput, stripHtmlTags } from "@/lib/heading";
+import { containsHan } from "@/lib/pinyin";
 import type { GlossaryEntry } from "@/lib/types";
 
 function domParagraphs(html: string): TextRun[][] {
@@ -37,11 +38,12 @@ export async function exportEntriesToDocx(entries: GlossaryEntry[]): Promise<Buf
       {
         children: sortEntriesForExport(entries).flatMap((entry) => {
           const blocks = domParagraphs(entry.body_rich_text);
+          const heading = exportHeadingParts(entry);
           return [
             new Paragraph({
               children: [
-                new TextRun({ text: entry.headword_pinyin, bold: true }),
-                new TextRun(` ${entry.headword_characters}`),
+                new TextRun({ text: heading.pinyin, bold: true }),
+                new TextRun(heading.characters ? ` ${heading.characters}` : ""),
                 new TextRun(`. ${entry.english_gloss_or_translation}`)
               ]
             }),
@@ -59,6 +61,7 @@ export async function exportEntriesToDocx(entries: GlossaryEntry[]): Promise<Buf
 export function exportEntriesToRtf(entries: GlossaryEntry[]): string {
   const lines = sortEntriesForExport(entries).flatMap((entry) => {
     const dom = new JSDOM(`<body>${entry.body_rich_text}</body>`);
+    const heading = exportHeadingRtf(entry);
     const paragraphs = Array.from(dom.window.document.body.children).map((block) => {
       const segments = Array.from(block.childNodes).map((node) => {
         if (node.nodeType === dom.window.Node.TEXT_NODE) {
@@ -84,7 +87,7 @@ export function exportEntriesToRtf(entries: GlossaryEntry[]): string {
     });
 
     return [
-      `\\b ${escapeRtf(entry.headword_pinyin)}\\b0 ${escapeRtf(entry.headword_characters)}. ${escapeRtf(entry.english_gloss_or_translation)}\\par`,
+      `${heading}${entry.english_gloss_or_translation ? ` . ${escapeRtf(entry.english_gloss_or_translation)}` : ""}\\par`,
       ...paragraphs,
       "\\par"
     ];
@@ -96,7 +99,7 @@ export function exportEntriesToRtf(entries: GlossaryEntry[]): string {
 export function exportEntriesToCurrentListText(entries: GlossaryEntry[]): string {
   return sortEntriesForExport(entries)
     .map((entry) => {
-      const heading = stripHtmlTags(formatHeading(entry));
+      const heading = exportHeadingText(entry);
       const body = stripHtmlTags(entry.body_rich_text);
       return `${heading} ${body}`.trim();
     })
@@ -105,9 +108,9 @@ export function exportEntriesToCurrentListText(entries: GlossaryEntry[]): string
 
 export function exportEntriesToCurrentListRtf(entries: GlossaryEntry[]): string {
   const lines = sortEntriesForExport(entries).map((entry) => {
-    const heading = htmlToInlineRtf(entry.heading_rich_text || formatHeading(entry));
+    const heading = exportHeadingRtf(entry);
     const body = htmlToInlineRtf(entry.body_rich_text);
-    return `${heading}\\tab ${body}`.trim();
+    return `${heading}${body ? `\\~${body}` : ""}`.trim();
   });
 
   return `{\\rtf1\\ansi\\deff0\n${lines.join("\\par\\par\n")}\\par\n}`;
@@ -125,15 +128,80 @@ function escapeRtf(value: string): string {
     .join("");
 }
 
-function htmlToInlineRtf(html: string): string {
+function exportHeadingText(entry: GlossaryEntry): string {
+  const parts = exportHeadingParts(entry);
+  return [parts.pinyin, parts.characters].filter(Boolean).join(" ").trim();
+}
+
+function exportHeadingRtf(entry: GlossaryEntry): string {
+  const parts = exportHeadingParts(entry);
+  const pinyin = escapeRtf(parts.pinyin);
+  const characters = parts.characters ? `\\~${escapeRtf(parts.characters)}` : "";
+  const pinyinRtf = headingPinyinShouldBeItalic(entry)
+    ? `\\i ${pinyin}\\i0`
+    : pinyin;
+  return `\\b ${pinyinRtf}${characters}\\b0`;
+}
+
+function exportHeadingParts(entry: GlossaryEntry): { pinyin: string; characters: string } {
+  const visible = stripHtmlTags(entry.heading_rich_text || formatHeading(entry));
+  const reparsed = parseHeadingInput(visible);
+  const storedPinyin = entry.headword_pinyin.trim();
+  const storedCharacters = entry.headword_characters.trim();
+
+  const storedLooksBroken =
+    containsHan(storedPinyin) ||
+    (!storedCharacters && Boolean(reparsed.headword_characters)) ||
+    (storedCharacters && !visible.includes(`${storedPinyin} ${storedCharacters}`));
+
+  if (storedLooksBroken) {
+    return {
+      pinyin: reparsed.headword_pinyin,
+      characters: reparsed.headword_characters
+    };
+  }
+
+  return {
+    pinyin: storedPinyin || reparsed.headword_pinyin,
+    characters: storedCharacters || reparsed.headword_characters
+  };
+}
+
+function headingPinyinShouldBeItalic(entry: GlossaryEntry): boolean {
+  const html = entry.heading_rich_text;
+  if (!html) {
+    return false;
+  }
+
+  const dom = new JSDOM(`<body>${html}</body>`);
+  return Array.from(dom.window.document.body.querySelectorAll("i, em")).some((element) => {
+    const text = stripHtmlTags(element.innerHTML);
+    return Boolean(text) && entry.headword_pinyin.includes(text);
+  });
+}
+
+function htmlToInlineRtf(
+  html: string,
+  options: {
+    preserveBold?: boolean;
+    preserveItalics?: boolean;
+  } = {}
+): string {
   const dom = new JSDOM(`<body>${html}</body>`);
   const pieces = Array.from(dom.window.document.body.childNodes).flatMap((node) =>
-    serializeNode(node, dom.window.Node)
+    serializeNode(node, dom.window.Node, options)
   );
   return pieces.join("").replace(/\s+/g, " ").trim();
 }
 
-function serializeNode(node: ChildNode, NodeCtor: typeof Node): string[] {
+function serializeNode(
+  node: ChildNode,
+  NodeCtor: typeof Node,
+  options: {
+    preserveBold?: boolean;
+    preserveItalics?: boolean;
+  }
+): string[] {
   if (node.nodeType === NodeCtor.TEXT_NODE) {
     return [escapeRtf(node.textContent ?? "")];
   }
@@ -144,13 +212,15 @@ function serializeNode(node: ChildNode, NodeCtor: typeof Node): string[] {
 
   const element = node as HTMLElement;
   const tag = element.tagName.toLowerCase();
-  const inner = Array.from(element.childNodes).flatMap((child) => serializeNode(child, NodeCtor)).join("");
+  const inner = Array.from(element.childNodes)
+    .flatMap((child) => serializeNode(child, NodeCtor, options))
+    .join("");
 
-  if (tag === "i" || tag === "em") {
+  if ((tag === "i" || tag === "em") && options.preserveItalics !== false) {
     return [`\\i ${inner}\\i0 `];
   }
 
-  if (tag === "b" || tag === "strong") {
+  if ((tag === "b" || tag === "strong") && options.preserveBold !== false) {
     return [`\\b ${inner}\\b0 `];
   }
 

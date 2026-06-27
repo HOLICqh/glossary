@@ -1,5 +1,6 @@
 import {
   exportEntriesToCurrentListText,
+  exportEntriesToCurrentListRtf,
   exportEntriesToRtf,
   sortEntriesForExport
 } from "@/lib/export";
@@ -34,5 +35,50 @@ describe("export helpers", () => {
 
     expect(text.split("\n\n")[0]).toContain("Mòjīng 墨經");
     expect(text.split("\n\n")[1]).toContain("Shěn Yǒudǐng 沈有鼎");
+  });
+
+  it("normalizes heading formatting in current list RTF export", () => {
+    const rtf = exportEntriesToCurrentListRtf([
+      {
+        ...sampleEntries[0],
+        headword_pinyin: "Mòzǐ",
+        headword_characters: "",
+        heading_rich_text: "<strong>Mòzǐ</strong><em>墨子</em>"
+      }
+    ]);
+
+    expect(rtf).toContain("\\b M\\u242?z\\u464?");
+    expect(rtf).not.toContain("\\i \\u22696?\\u23376?\\i0");
+    expect(rtf).toContain("M\\u242?z\\u464?\\~\\u22696?\\u23376?");
+    expect(rtf).not.toContain("\\tab");
+    expect(rtf).toContain("\\~");
+  });
+
+  it("preserves intentional pinyin italics in RTF headings", () => {
+    const rtf = exportEntriesToCurrentListRtf([
+      {
+        ...sampleEntries[0],
+        headword_pinyin: "Mòzǐ jiāngǔ",
+        headword_characters: "墨子閒詁",
+        heading_rich_text: "<em>Mòzǐ jiāngǔ</em><strong>墨子閒詁</strong>"
+      }
+    ]);
+
+    expect(rtf).toContain("\\i M\\u242?z\\u464? ji\\u257?ng\\u468?\\i0");
+    expect(rtf).toContain("\\i M\\u242?z\\u464? ji\\u257?ng\\u468?\\i0\\~\\u22696?\\u23376?\\u38290?");
+    expect(rtf).toContain("\\u22696?\\u23376?\\u38290?");
+  });
+
+  it("repairs missing pinyin-hanzi spacing from malformed stored heading fields", () => {
+    const rtf = exportEntriesToCurrentListRtf([
+      {
+        ...sampleEntries[0],
+        headword_pinyin: "Dàozàng道藏",
+        headword_characters: "",
+        heading_rich_text: "Dàozàng道藏"
+      }
+    ]);
+
+    expect(rtf).toContain("D\\u224?oz\\u224?ng\\~\\u36947?\\u34255?");
   });
 });
