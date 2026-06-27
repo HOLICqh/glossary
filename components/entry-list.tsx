@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { FileMenu } from "@/components/file-menu";
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
@@ -40,6 +40,11 @@ export function EntryList({
     return summarizeTags(selectedEntries.map((entry) => entry.body_rich_text));
   }, [selectedEntries]);
   const normalizedTagInput = normalizeTagValue(tagInput);
+
+  useEffect(() => {
+    const visibleIds = new Set(entries.map((entry) => entry.id));
+    setSelectedIds((current) => current.filter((id) => visibleIds.has(id)));
+  }, [entries]);
 
   function toggleOne(id: string) {
     setSelectedIds((current) =>
