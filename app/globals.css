@@ -427,7 +427,12 @@ button {
 .entry-workspace h1,
 .entry-preview-card h2 {
   font-size: var(--heading-size);
-  font-weight: 650;
+  font-weight: 400;
+}
+
+.entry-workspace h1 .heading-pinyin,
+.entry-preview-card h2 .heading-pinyin {
+  font-weight: 700 !important;
 }
 
 .toggle-button {

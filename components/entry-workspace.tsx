@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
-import { formatHeading, normalizeHeadingKey, stripHtmlTags } from "@/lib/heading";
+import { formatHeading, normalizeHeadingKey, renderHeadingHtml, stripHtmlTags } from "@/lib/heading";
 import { normalizeCompactSearchText, normalizeSearchText, tokens } from "@/lib/pinyin";
 import type { GlossaryEntry, HeadingOption } from "@/lib/types";
 import {
@@ -362,7 +362,7 @@ export function EntryWorkspace({
         </>
       ) : (
         <>
-          <h1 dangerouslySetInnerHTML={{ __html: savedHeadingHtml }} />
+          <h1 dangerouslySetInnerHTML={{ __html: renderHeadingHtml(savedHeadingHtml) }} />
           <div className="entry-body" dangerouslySetInnerHTML={{ __html: renderedBody }} />
         </>
       )}

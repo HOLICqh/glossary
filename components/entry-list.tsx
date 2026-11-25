@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { FileMenu } from "@/components/file-menu";
 import { containsPlaceholderTag, renderViewBodyHtml } from "@/lib/body";
-import { formatHeading } from "@/lib/heading";
+import { formatHeading, renderHeadingHtml } from "@/lib/heading";
 import { normalizeTagValue, summarizeTags } from "@/lib/tag-helpers";
 import type { GlossaryEntry } from "@/lib/types";
 
@@ -399,7 +399,7 @@ export function EntryList({
                     scroll={false}
                     className="entry-preview-heading-link"
                     onClick={rememberScrollPosition}
-                    dangerouslySetInnerHTML={{ __html: formatHeading(entry) }}
+                    dangerouslySetInnerHTML={{ __html: renderHeadingHtml(formatHeading(entry)) }}
                   />
                 </h2>
                 <div
@@ -411,7 +411,7 @@ export function EntryList({
               </div>
             ) : (
               <div className="panel entry-preview-card entry-preview-card-public">
-                <h2 dangerouslySetInnerHTML={{ __html: formatHeading(entry) }} />
+                <h2 dangerouslySetInnerHTML={{ __html: renderHeadingHtml(formatHeading(entry)) }} />
                 <div
                   className="entry-preview-body"
                   dangerouslySetInnerHTML={{

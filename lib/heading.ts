@@ -59,6 +59,17 @@ export function formatHeading(
   return entry.heading_rich_text || [entry.headword_pinyin, entry.headword_characters].filter(Boolean).join(" ").trim();
 }
 
+export function renderHeadingHtml(html: string): string {
+  // Keep stored markup and entities intact while styling the Latin text runs.
+  return html
+    .split(/(<!--[^]*?-->|<(?:[^<>"']|"[^"]*"|'[^']*')*>|&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]*);)/gi)
+    .map((part, index) => index % 2 ? part : part.replace(
+      /\p{Script=Latin}[\p{Script=Latin}\p{M}]*/gu,
+      '<span class="heading-pinyin">$&</span>'
+    ))
+    .join("");
+}
+
 export function parseHeadingInput(heading: string): {
   headword_pinyin: string;
   headword_characters: string;
