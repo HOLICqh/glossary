@@ -15,6 +15,14 @@ export function hasPasswordAuth(): boolean {
   return Boolean(env.editorPassword);
 }
 
+export function isDemoEditorAllowed(): boolean {
+  return process.env.NODE_ENV === "development" &&
+    !process.env.VERCEL &&
+    env.demoMode &&
+    !hasPasswordAuth() &&
+    !hasSupabaseConfig();
+}
+
 export function getExpectedEditorSession(): string {
   return hashEditorPassword(env.editorPassword);
 }
@@ -38,12 +46,8 @@ export async function getUserRole(): Promise<UserRole> {
     return "editor";
   }
 
-  if (demoEditor) {
+  if (demoEditor && isDemoEditorAllowed()) {
     return "editor";
-  }
-
-  if (hasSupabaseConfig()) {
-    return "public";
   }
 
   return "public";

@@ -4,6 +4,7 @@ import {
   getEditorCookieName,
   getExpectedEditorSession,
   hasPasswordAuth,
+  isDemoEditorAllowed,
   isValidEditorPassword
 } from "@/lib/auth";
 
@@ -24,9 +25,11 @@ export async function POST(request: Request) {
       path: "/"
     });
     cookieStore.delete({ name: "demo-editor", path: "/" });
-  } else {
+  } else if (isDemoEditorAllowed()) {
     cookieStore.set("demo-editor", "true", { httpOnly: true, sameSite: "lax", path: "/" });
     cookieStore.delete({ name: getEditorCookieName(), path: "/" });
+  } else {
+    return new Response("Editor sign-in is unavailable.", { status: 403 });
   }
 
   return new Response(null, {

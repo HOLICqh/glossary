@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/app-shell";
-import { getUserRole, hasPasswordAuth } from "@/lib/auth";
+import { getUserRole, hasPasswordAuth, isDemoEditorAllowed } from "@/lib/auth";
 
 export default async function LoginPage() {
   const role = await getUserRole();
@@ -20,7 +20,7 @@ export default async function LoginPage() {
               <button type="submit">Sign in</button>
             </form>
           </>
-        ) : (
+        ) : isDemoEditorAllowed() ? (
           <>
             <p>
               Local demo mode is active. Use the button below to enable editor access in this
@@ -30,7 +30,7 @@ export default async function LoginPage() {
               <button type="submit">Enable demo editor access</button>
             </form>
           </>
-        )}
+        ) : <p>Editor sign-in is unavailable.</p>}
       </section>
     </AppShell>
   );
