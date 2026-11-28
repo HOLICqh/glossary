@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     ids?: string[];
     format?: "rtf" | "txt";
     stripTags?: boolean;
+    kaiHeadwords?: boolean;
   };
   const format = body.format ?? "rtf";
 
@@ -27,7 +28,10 @@ export async function POST(request: Request) {
     });
   }
 
-  return new Response(exportEntriesToCurrentListRtf(entries, { stripTags: body.stripTags }), {
+  return new Response(exportEntriesToCurrentListRtf(entries, {
+    stripTags: body.stripTags,
+    kaiHeadwords: body.kaiHeadwords === true
+  }), {
     headers: {
       "Content-Type": "application/rtf; charset=utf-8",
       "Content-Disposition": 'attachment; filename="glossary-current-list.rtf"'

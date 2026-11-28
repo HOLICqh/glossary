@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { EntryWorkspace } from "@/components/entry-workspace";
 import { getUserRole } from "@/lib/auth";
+import { omitEditorialNote } from "@/lib/body";
 import { getRepository } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function EntryPage({
   return (
     <AppShell editor={role === "editor"}>
       <EntryWorkspace
-        entry={entry}
+        entry={role === "editor" ? entry : omitEditorialNote(entry)}
         canEdit={role === "editor"}
         initiallyEditing={role === "editor" ? query.edit !== "0" : false}
         backHref={query.back || "/"}

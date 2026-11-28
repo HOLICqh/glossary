@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 
-import { stripHashtagsFromHtml } from "@/lib/body";
+import { splitEditorialNote, stripHashtagsFromHtml } from "@/lib/body";
 import { formatHeading, parseHeadingInput, stripHtmlTags } from "@/lib/heading";
 import { containsHan } from "@/lib/pinyin";
 import type { GlossaryEntry } from "@/lib/types";
@@ -38,7 +38,7 @@ export async function exportEntriesToDocx(entries: GlossaryEntry[]): Promise<Buf
     sections: [
       {
         children: sortEntriesForExport(entries).flatMap((entry) => {
-          const blocks = domParagraphs(entry.body_rich_text);
+          const blocks = domParagraphs(splitEditorialNote(entry.body_rich_text).body);
           const heading = exportHeadingParts(entry);
           return [
             new Paragraph({
@@ -61,7 +61,7 @@ export async function exportEntriesToDocx(entries: GlossaryEntry[]): Promise<Buf
 
 export function exportEntriesToRtf(entries: GlossaryEntry[]): string {
   const lines = sortEntriesForExport(entries).flatMap((entry) => {
-    const dom = new JSDOM(`<body>${entry.body_rich_text}</body>`);
+    const dom = new JSDOM(`<body>${splitEditorialNote(entry.body_rich_text).body}</body>`);
     const heading = exportHeadingRtf(entry);
     const paragraphs = Array.from(dom.window.document.body.children).map((block) => {
       const segments = Array.from(block.childNodes).map((node) => {
@@ -104,7 +104,9 @@ export function exportEntriesToCurrentListText(
   return sortEntriesForExport(entries)
     .map((entry) => {
       const heading = exportHeadingText(entry);
-      const sourceBody = options.stripTags ? stripHashtagsFromHtml(entry.body_rich_text) : entry.body_rich_text;
+      const sourceBody = options.stripTags
+        ? stripHashtagsFromHtml(splitEditorialNote(entry.body_rich_text).body)
+        : entry.body_rich_text;
       const body = stripHtmlTags(sourceBody);
       return `${heading} ${body}`.trim();
     })
@@ -113,16 +115,22 @@ export function exportEntriesToCurrentListText(
 
 export function exportEntriesToCurrentListRtf(
   entries: GlossaryEntry[],
-  options: { stripTags?: boolean } = {}
+  options: { stripTags?: boolean; kaiHeadwords?: boolean } = {}
 ): string {
   const lines = sortEntriesForExport(entries).map((entry) => {
-    const heading = exportHeadingRtf(entry);
-    const sourceBody = options.stripTags ? stripHashtagsFromHtml(entry.body_rich_text) : entry.body_rich_text;
+    const heading = exportHeadingRtf(entry, options.kaiHeadwords);
+    const sourceBody = options.stripTags
+      ? stripHashtagsFromHtml(splitEditorialNote(entry.body_rich_text).body)
+      : entry.body_rich_text;
     const body = htmlToInlineRtf(sourceBody);
-    return `${heading}${body ? `\\~${body}` : ""}`.trim();
+    const bodyRtf = body && options.kaiHeadwords ? `{\\f0 ${body}}` : body;
+    return `${heading}${bodyRtf ? `\\~${bodyRtf}` : ""}`.trim();
   });
 
-  return `{\\rtf1\\ansi\\deff0\n${lines.join("\\par\\par\n")}\\par\n}`;
+  const fonts = options.kaiHeadwords
+    ? "{\\fonttbl{\\f0\\froman Times New Roman;}{\\f1\\fnil\\fcharset136 Kaiti TC;}}"
+    : "";
+  return `{\\rtf1\\ansi\\deff0${fonts}\n${lines.join("\\par\\par\n")}\\par\n}`;
 }
 
 function escapeRtf(value: string): string {
@@ -142,13 +150,18 @@ function exportHeadingText(entry: GlossaryEntry): string {
   return [parts.pinyin, parts.characters].filter(Boolean).join(" ").trim();
 }
 
-function exportHeadingRtf(entry: GlossaryEntry): string {
+function exportHeadingRtf(entry: GlossaryEntry, kaiHeadwords = false): string {
   const parts = exportHeadingParts(entry);
   const pinyin = escapeRtf(parts.pinyin);
   const characters = parts.characters ? `\\~${escapeRtf(parts.characters)}` : "";
   const pinyinRtf = headingPinyinShouldBeItalic(entry)
     ? `\\i ${pinyin}\\i0`
     : pinyin;
+  if (kaiHeadwords) {
+    const latin = pinyin ? `{\\f0\\b ${pinyinRtf}}` : "";
+    const hanzi = parts.characters ? `{\\f1\\b0 ${escapeRtf(parts.characters)}}` : "";
+    return [latin, hanzi].filter(Boolean).join("\\~");
+  }
   return `\\b ${pinyinRtf}${characters}\\b0`;
 }
 

@@ -302,7 +302,7 @@ export function EntryWorkspace({
             >
               Hotlink selection
             </button>
-            <span className="muted">Hashtags remain searchable but disappear in view mode.</span>
+            <span className="muted">Hashtags stay searchable. Add %% after tags to start an editorial note.</span>
           </div>
           <NativeRichEditor
             ref={bodyEditorRef}

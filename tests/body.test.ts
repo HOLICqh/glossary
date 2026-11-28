@@ -7,6 +7,11 @@ import {
 } from "@/lib/body";
 
 describe("stripHashtagsFromHtml", () => {
+  it("hides editorial notes while keeping the preceding inline markup balanced", () => {
+    expect(renderViewBodyHtml('<p><em>Text &#37;% Private</em></p><p>#placeholder</p>'))
+      .toBe("<p><em>Text </em></p>");
+  });
+
   it("hides hashtags in rendered view output", () => {
     const html = "<p>Mòzǐ is discussed here. #draft #school-notes</p>";
     expect(stripHashtagsFromHtml(html)).toContain("Mòzǐ is discussed here.");

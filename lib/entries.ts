@@ -1,4 +1,4 @@
-import { containsPlaceholderTag, extractTagsFromHtml } from "@/lib/body";
+import { containsPlaceholderTag, extractTagsFromHtml, splitEditorialNote } from "@/lib/body";
 import { formatHeading } from "@/lib/heading";
 import {
   normalizeCompactSearchText,
@@ -29,7 +29,7 @@ export function buildPlainTextSearchCache(input: {
     normalizeSearchText(input.headword_pinyin),
     input.headword_characters,
     input.english_gloss_or_translation,
-    richTextToPlainText(input.body_rich_text),
+    richTextToPlainText(splitEditorialNote(input.body_rich_text).body),
     input.tags.join(" ")
   ]
     .join(" ")

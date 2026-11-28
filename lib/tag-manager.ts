@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import { splitEditorialNote } from "@/lib/body";
 
 import { normalizeTagValue } from "@/lib/tag-helpers";
 
@@ -11,7 +12,8 @@ export function normalizeEntryBodyTags(
     removeTag?: string;
   }
 ): { html: string; tags: string[] } {
-  const dom = new JSDOM(`<body>${html}</body>`);
+  const { body: content, note } = splitEditorialNote(html);
+  const dom = new JSDOM(content);
   const { document, NodeFilter } = dom.window;
   const body = document.body;
   const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
@@ -68,7 +70,7 @@ export function normalizeEntryBodyTags(
   }
 
   return {
-    html: body.innerHTML.trim(),
+    html: body.innerHTML.trim() + note,
     tags
   };
 }

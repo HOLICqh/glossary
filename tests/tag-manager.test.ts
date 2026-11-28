@@ -3,6 +3,14 @@ import { normalizeTagValue } from "@/lib/tag-helpers";
 import { normalizeEntryBodyTags } from "@/lib/tag-manager";
 
 describe("tag manager", () => {
+  it("keeps editorial notes after tags without treating note text as tags", () => {
+    const result = normalizeEntryBodyTags("<p>Body. #draft %% Note #placeholder</p><p>More notes.</p>", {
+      addTag: "#review"
+    });
+    expect(result.tags).toEqual(["#draft", "#review"]);
+    expect(result.html).toBe("<p>Body. </p><p>#draft #review</p><p>%% Note #placeholder</p><p>More notes.</p>");
+  });
+
   it("moves scattered tags into one deduplicated cluster at the end", () => {
     const html = "<p>Alpha #draft text.</p><p><em>#draft</em> Beta #review</p>";
     const normalized = normalizeEntryBodyTags(html);

@@ -2,7 +2,7 @@ import { AppShell } from "@/components/app-shell";
 import { EntryList } from "@/components/entry-list";
 import { SearchBar } from "@/components/search-bar";
 import { getUserRole } from "@/lib/auth";
-import { containsPlaceholderTag } from "@/lib/body";
+import { containsPlaceholderTag, omitEditorialNote, splitEditorialNote } from "@/lib/body";
 import { getRepository } from "@/lib/repository";
 import { findLinkingEntries } from "@/lib/rich-text";
 
@@ -22,8 +22,13 @@ export default async function HomePage({
   const linkTargets = role === "editor" && typeof params.linksTo === "string"
     ? params.linksTo.split(",").filter(Boolean)
     : [];
+  const notesSearch = typeof params.q === "string" && params.q.trim() === "%%";
   const baseEntries = linkTargets.length
     ? findLinkingEntries(await repo.list(), linkTargets)
+    : notesSearch
+      ? role === "editor"
+        ? (await repo.list()).filter(({ body_rich_text }) => splitEditorialNote(body_rich_text).note !== "")
+        : []
     : params.q
     ? await repo.search(params.q, role === "editor" ? undefined : 20)
     : await repo.list(role === "editor" ? undefined : 20);
@@ -40,7 +45,7 @@ export default async function HomePage({
       ? filteredEntries.slice().sort((left, right) => left.sort_key.localeCompare(right.sort_key))
       : filteredEntries;
   const audienceEntries = role === "editor" ? entries : entries.filter((entry) => !containsPlaceholderTag(entry.body_rich_text));
-  const visibleEntries = role === "editor" ? audienceEntries : audienceEntries.slice(0, 20);
+  const visibleEntries = role === "editor" ? audienceEntries : audienceEntries.slice(0, 20).map(omitEditorialNote);
   const currentParams = new URLSearchParams();
   if (params.q) {
     currentParams.set("q", params.q);

@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import { splitEditorialNote } from "@/lib/body";
 
 import type { GlossaryEntry, GlossaryLinkTarget } from "@/lib/types";
 
@@ -16,7 +17,8 @@ export function extractInternalLinks(html: string): string[] {
 
 export function findLinkingEntries(entries: GlossaryEntry[], targetIds: string[]): GlossaryEntry[] {
   const targets = new Set(targetIds);
-  return entries.filter(({ body_rich_text: html }) => {
+  return entries.filter(({ body_rich_text }) => {
+    const { body: html } = splitEditorialNote(body_rich_text);
     if (!html.includes("/entries/") && !html.includes("data-entry-id")) return false;
 
     const { window } = new JSDOM(`<body>${html}</body>`);

@@ -32,6 +32,7 @@ export function EntryList({
   const [tagActionMessage, setTagActionMessage] = useState("");
   const [tagActionPending, setTagActionPending] = useState<"add" | "remove" | "">("");
   const [stripTagsOnExport, setStripTagsOnExport] = useState(true);
+  const [kaiHeadwords, setKaiHeadwords] = useState(true);
   const allSelected = useMemo(
     () => entries.length > 0 && entries.every((entry) => selectedIds.includes(entry.id)),
     [entries, selectedIds]
@@ -137,7 +138,8 @@ export function EntryList({
         body: JSON.stringify({
           ids: selectedIds,
           format,
-          stripTags: stripTagsOnExport
+          stripTags: stripTagsOnExport,
+          kaiHeadwords
         })
       });
 
@@ -316,7 +318,15 @@ export function EntryList({
                       checked={stripTagsOnExport}
                       onChange={(event) => setStripTagsOnExport(event.target.checked)}
                     />
-                    Remove tags
+                    Remove # and %%
+                  </label>
+                  <label className="file-menu-option">
+                    <input
+                      type="checkbox"
+                      checked={kaiHeadwords}
+                      onChange={(event) => setKaiHeadwords(event.target.checked)}
+                    />
+                    Bold pinyin, Kai Hanzi
                   </label>
                 </div>
               </details>
