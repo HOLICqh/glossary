@@ -435,6 +435,17 @@ button {
   font-weight: 700 !important;
 }
 
+.entry-workspace h1 .heading-hanzi,
+.entry-preview-card h2 .heading-hanzi {
+  font-family: "Glossary TW-Kai", var(--entry-font) !important;
+  font-weight: 400 !important;
+}
+
+.heading-editor,
+.heading-editor * {
+  font-family: "Glossary TW-Kai", var(--entry-font) !important;
+}
+
 .toggle-button {
   min-width: 68px;
   border: none;

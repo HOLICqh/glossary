@@ -1,3 +1,4 @@
+import "./tw-kai.css";
 import "./globals.css";
 
 import type { Metadata } from "next";

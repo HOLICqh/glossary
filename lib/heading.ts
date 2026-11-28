@@ -60,12 +60,12 @@ export function formatHeading(
 }
 
 export function renderHeadingHtml(html: string): string {
-  // Keep stored markup and entities intact while styling the Latin text runs.
+  // Keep stored markup and entities intact while styling each script.
   return html
     .split(/(<!--[^]*?-->|<(?:[^<>"']|"[^"]*"|'[^']*')*>|&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]*);)/gi)
     .map((part, index) => index % 2 ? part : part.replace(
-      /\p{Script=Latin}[\p{Script=Latin}\p{M}]*/gu,
-      '<span class="heading-pinyin">$&</span>'
+      /(\p{Script=Latin}[\p{Script=Latin}\p{M}]*)|\p{Script=Han}[\p{Script=Han}\p{M}]*/gu,
+      (run, latin) => '<span class="' + (latin ? "heading-pinyin" : "heading-hanzi") + '">' + run + '</span>'
     ))
     .join("");
 }
