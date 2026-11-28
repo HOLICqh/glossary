@@ -14,6 +14,22 @@ export function extractInternalLinks(html: string): string[] {
     .filter(Boolean);
 }
 
+export function findLinkingEntries(entries: GlossaryEntry[], targetIds: string[]): GlossaryEntry[] {
+  const targets = new Set(targetIds);
+  return entries.filter(({ body_rich_text: html }) => {
+    if (!html.includes("/entries/") && !html.includes("data-entry-id")) return false;
+
+    const { window } = new JSDOM(`<body>${html}</body>`);
+    const matches = Array.from(window.document.querySelectorAll("a")).some((link) => {
+      const href = link.getAttribute("href") ?? "";
+      const target = href.match(/^\/entries\/([^/?#]+)(?:[?#].*)?$/)?.[1];
+      return targets.has(target ?? link.getAttribute("data-entry-id") ?? "");
+    });
+    window.close();
+    return matches;
+  });
+}
+
 export function markSelectionWithLink(
   html: string,
   selectedText: string,

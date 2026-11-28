@@ -4,13 +4,14 @@ import { SearchBar } from "@/components/search-bar";
 import { getUserRole } from "@/lib/auth";
 import { containsPlaceholderTag } from "@/lib/body";
 import { getRepository } from "@/lib/repository";
+import { findLinkingEntries } from "@/lib/rich-text";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
   searchParams
 }: {
-  searchParams: Promise<{ q?: string; imported?: string; import_status?: string; selected?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; imported?: string; import_status?: string; selected?: string; sort?: string; linksTo?: string }>;
 }) {
   const params = await searchParams;
   const role = await getUserRole();
@@ -18,7 +19,12 @@ export default async function HomePage({
   const importedParam = params.imported;
   const importedIds = importedParam?.split(",").filter(Boolean) ?? [];
   const selectedIds = params.selected?.split(",").filter(Boolean) ?? [];
-  const baseEntries = params.q
+  const linkTargets = role === "editor" && typeof params.linksTo === "string"
+    ? params.linksTo.split(",").filter(Boolean)
+    : [];
+  const baseEntries = linkTargets.length
+    ? findLinkingEntries(await repo.list(), linkTargets)
+    : params.q
     ? await repo.search(params.q, role === "editor" ? undefined : 20)
     : await repo.list(role === "editor" ? undefined : 20);
   const filteredEntries =
@@ -51,6 +57,9 @@ export default async function HomePage({
   if (params.sort) {
     currentParams.set("sort", params.sort);
   }
+  if (linkTargets.length) {
+    currentParams.set("linksTo", linkTargets.join(","));
+  }
   const backHref = currentParams.toString() ? `/?${currentParams.toString()}` : "/";
 
   return (
@@ -60,6 +69,7 @@ export default async function HomePage({
         editor={role === "editor"}
         backHref={backHref}
         importStatus={params.import_status ?? ""}
+        reverseSearch={linkTargets.length > 0}
       />
     </AppShell>
   );

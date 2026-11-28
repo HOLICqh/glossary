@@ -14,12 +14,14 @@ export function EntryList({
   entries,
   editor,
   backHref,
-  importStatus = ""
+  importStatus = "",
+  reverseSearch = false
 }: {
   entries: GlossaryEntry[];
   editor: boolean;
   backHref: string;
   importStatus?: string;
+  reverseSearch?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -258,6 +260,20 @@ export function EntryList({
               <button
                 type="button"
                 className="list-icon-button"
+                aria-label="Find entries linking to selection"
+                title="Find entries linking to selection"
+                disabled={selectedEntries.length === 0}
+                onClick={() => {
+                  const query = new URLSearchParams({ linksTo: selectedEntries.map(({ id }) => id).join(",") });
+                  router.push(`/?${query}`);
+                  setSelectedIds([]);
+                }}
+              >
+                @
+              </button>
+              <button
+                type="button"
+                className="list-icon-button"
                 aria-label="Alphabetize current selection"
                 title="Alphabetize current selection"
                 disabled={selectedIds.length === 0}
@@ -317,6 +333,11 @@ export function EntryList({
             </div>
           </div>
           {importStatus ? <p className="list-status muted">{importStatus}</p> : null}
+          {reverseSearch ? (
+            <p className="list-status muted" role="status">
+              {entries.length === 0 ? "No entries link to the selected headwords." : `${entries.length} linking ${entries.length === 1 ? "entry" : "entries"}`}
+            </p>
+          ) : null}
           {showTagManager ? (
             <div className="tag-manager panel">
               <div className="tag-manager-header">

@@ -18,6 +18,7 @@ export function SearchBar() {
         next.delete("import_status");
         next.delete("selected");
         next.delete("sort");
+        next.delete("linksTo");
         if (query.trim()) {
           next.set("q", query.trim());
         } else {
